@@ -14,6 +14,7 @@ import { UNIVERSE, REGION_LABEL, ASSET_LABEL, CORE_CODES, type Scope } from './c
 import { createApiRouter } from './routes/api.js';
 import { createStreamRouter } from './routes/stream.js';
 import { createResearchRouter } from './routes/research.js';
+import { createReportRouter } from './routes/report.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -140,6 +141,7 @@ async function main(): Promise<void> {
   });
 
   app.use('/api', createStreamRouter(bus, scheduler));
+  app.use('/api', createReportRouter(scheduler, wisburg));
   if (wisburg && wisburgLedger) {
     app.use('/api/research', createResearchRouter(wisburg, wisburgLedger));
   } else {

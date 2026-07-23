@@ -61,6 +61,21 @@
 - 全文搜索 + 游标翻页
 - Markdown 正文渲染
 
+### 一键导出报告
+顶栏「⤓ 导出报告」，服务端用内存快照生成完整市场日报 —— **导出本身不消耗任何金十额度**，可以随便点。
+
+| 格式 | 用途 |
+|---|---|
+| **HTML** | 新标签打开，自带打印按钮，A4 排版可直接存为 PDF |
+| **Markdown** | 下载 `.md`，可粘进微信 / 邮件 / 笔记 |
+| **JSON** | 下载结构化数据，便于二次处理 |
+
+报告内容：市场概况（涨跌分布 + 按地区/按品种汇总 + 领涨领跌）、全品种行情明细（按地区分组，含今开/最高/最低/更新时延）、今日财经日历（已公布带前值预期实际与利多利空 / 待公布）、重要快讯、深度资讯。勾选「含智堡研究」会额外打 2 次智堡调用，附上市场日报与投研资讯流。
+
+```bash
+curl "http://localhost:8080/api/report?format=md&flash=40&news=10&star=3&research=1"
+```
+
 ### 通用
 - 日间 / 夜间主题（跟随系统，可手动覆盖，对比度 AAA 级）
 - 额度水位条常驻顶栏
@@ -159,6 +174,7 @@ railway up            # 部署
 |---|---|---|
 | GET | `/api/stream?codes=A,B&focus=A` | **SSE 实时通道**，事件：`hello` `quote` `kline` `flash` `news` `calendar` `quota` `status` `ping` |
 | GET | `/api/health` | 健康检查 |
+| GET | `/api/report?format=html\|md\|json` | **导出市场日报**。参数：`research=1` 含智堡、`flash=` 快讯条数、`news=` 资讯条数、`star=` 日历最低星级、`download=1` 强制下载。不消耗金十额度 |
 | GET | `/api/universe` | 品种分类元数据 + 覆盖度 |
 | POST | `/api/scope` | 切换覆盖范围 `{"scope":"core"\|"full"}` |
 | GET | `/api/quota` | 额度快照 |

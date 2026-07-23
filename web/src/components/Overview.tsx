@@ -131,7 +131,14 @@ export function Overview({ meta, quotes, now, onPick }: Props) {
 
     return {
       groups: gs,
-      movers: { top: sorted.slice(0, 5), bottom: sorted.slice(-5).reverse() },
+      // 只收真正同向的品种：覆盖品种少或单边行情时，末尾 5 个可能全是上涨的
+      movers: {
+        top: sorted.filter((c) => (c.pct ?? 0) > 0).slice(0, 5),
+        bottom: sorted
+          .filter((c) => (c.pct ?? 0) < 0)
+          .slice(-5)
+          .reverse(),
+      },
       breadth: {
         up: known.filter((c) => (c.pct ?? 0) > 0).length,
         down: known.filter((c) => (c.pct ?? 0) < 0).length,
@@ -181,6 +188,7 @@ export function Overview({ meta, quotes, now, onPick }: Props) {
                 <span className="num up">{fmtPct(c.pct)}</span>
               </button>
             ))}
+            {!movers.top.length && <span className="mover-none">全线下跌</span>}
           </div>
           <div className="mover-col">
             <label>领跌</label>
@@ -190,6 +198,7 @@ export function Overview({ meta, quotes, now, onPick }: Props) {
                 <span className="num down">{fmtPct(c.pct)}</span>
               </button>
             ))}
+            {!movers.bottom.length && <span className="mover-none">全线上涨</span>}
           </div>
         </div>
 

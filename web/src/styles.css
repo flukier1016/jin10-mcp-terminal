@@ -487,6 +487,99 @@ a {
   color: var(--gold);
 }
 
+/* ── 导出报告菜单 ───────────────────────────────────────────── */
+
+.export {
+  position: relative;
+}
+
+.export-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 60;
+  width: 268px;
+  padding: 6px;
+  border-radius: 13px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-solid);
+  box-shadow: 0 16px 44px color-mix(in srgb, var(--bg) 65%, #000);
+  animation: rise 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.export-head {
+  padding: 7px 10px 6px;
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  color: var(--fg-mute);
+  font-family: var(--mono);
+  text-transform: uppercase;
+}
+
+.export-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 9px;
+  text-align: left;
+  transition: background 0.14s;
+}
+
+.export-item:hover {
+  background: var(--gold-dim);
+}
+
+.export-item i {
+  font-style: normal;
+  font-size: 14px;
+  line-height: 1.35;
+  width: 18px;
+  flex-shrink: 0;
+  color: var(--gold);
+}
+
+.export-item b {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.export-item em,
+.export-opt em {
+  display: block;
+  font-style: normal;
+  font-size: 10.5px;
+  color: var(--fg-mute);
+  line-height: 1.45;
+  margin-top: 1px;
+}
+
+.export-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.export-opt input {
+  margin: 2px 0 0;
+  accent-color: var(--gold);
+}
+
+.export-foot {
+  padding: 7px 10px 4px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--fg-mute);
+  border-top: 1px solid var(--line);
+}
+
 /* 额度水位条 */
 .quota {
   display: flex;
@@ -1296,6 +1389,13 @@ a {
 }
 .mover:hover {
   background: color-mix(in srgb, var(--fg-mute) 16%, transparent);
+}
+
+.mover-none {
+  display: block;
+  padding: 3px 6px;
+  font-size: 11.5px;
+  color: var(--fg-mute);
 }
 
 .mover-name {

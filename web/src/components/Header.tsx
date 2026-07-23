@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import type { ConnState, QuotaSnapshot } from '../types';
 import { bjTime, countdown, fmtInterval } from '../lib/format';
+import { ExportMenu } from './ExportMenu';
 
 const TOOL_LABEL: Record<string, string> = {
   get_quote: '行情',
@@ -20,10 +21,22 @@ interface Props {
   onOpenCodes: () => void;
   /** 只有终端页需要"添加品种"。 */
   showCodes: boolean;
+  wisburgOn: boolean;
 }
 
 /** 顶栏：连接状态 + 额度水位 + 北京时间。额度直接摆出来，刷新节奏才是可信的。 */
-function HeaderInner({ conn, quota, now, scheme, onScheme, theme, onTheme, onOpenCodes, showCodes }: Props) {
+function HeaderInner({
+  conn,
+  quota,
+  now,
+  scheme,
+  onScheme,
+  theme,
+  onTheme,
+  onOpenCodes,
+  showCodes,
+  wisburgOn,
+}: Props) {
   const polled = (quota?.tools ?? []).filter((t) => TOOL_LABEL[t.tool]);
 
   return (
@@ -81,6 +94,7 @@ function HeaderInner({ conn, quota, now, scheme, onScheme, theme, onTheme, onOpe
           ＋ 添加品种
         </button>
       )}
+      <ExportMenu wisburgOn={wisburgOn} />
       <button className={`chip${scheme === 'cn' ? ' on' : ''}`} onClick={onScheme} title="切换涨跌配色">
         {scheme === 'cn' ? '红涨绿跌' : '绿涨红跌'}
       </button>

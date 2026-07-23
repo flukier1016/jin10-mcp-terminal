@@ -157,6 +157,7 @@ export default function App() {
         onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
         onOpenCodes={() => setPickerOpen(true)}
         showCodes={view === 'terminal'}
+        wisburgOn={meta?.sources.wisburg ?? false}
       />
 
       <div className="shell">
