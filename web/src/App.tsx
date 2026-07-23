@@ -11,6 +11,7 @@ import { CodePicker } from './components/CodePicker';
 import { ArticleModal } from './components/ArticleModal';
 import { Overview } from './components/Overview';
 import { Research, ResearchModal } from './components/Research';
+import { Workbench } from './components/Workbench';
 import { useNow, useStream } from './lib/useStream';
 import { api, type UniverseMeta } from './lib/api';
 import type { KlineBar } from './types';
@@ -213,6 +214,17 @@ export default function App() {
         {view === 'overview' && (
           <div className="page">
             <Overview meta={meta} quotes={stream.quotes} now={now} onPick={pickFromOverview} />
+          </div>
+        )}
+
+        {view === 'workbench' && (
+          <div className="page page-flush">
+            <Workbench
+              now={now}
+              onOpenWisburg={setResTarget}
+              onOpenJin10News={setArticleId}
+              onPickCode={pickFromOverview}
+            />
           </div>
         )}
 

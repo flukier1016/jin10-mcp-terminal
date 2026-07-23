@@ -15,6 +15,7 @@ import { createApiRouter } from './routes/api.js';
 import { createStreamRouter } from './routes/stream.js';
 import { createResearchRouter } from './routes/research.js';
 import { createReportRouter } from './routes/report.js';
+import { createTopicRouter } from './routes/topic.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -142,6 +143,7 @@ async function main(): Promise<void> {
 
   app.use('/api', createStreamRouter(bus, scheduler));
   app.use('/api', createReportRouter(scheduler, wisburg));
+  app.use('/api', createTopicRouter(jin10, wisburg, scheduler));
   if (wisburg && wisburgLedger) {
     app.use('/api/research', createResearchRouter(wisburg, wisburgLedger));
   } else {

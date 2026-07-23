@@ -120,6 +120,55 @@ export interface ResearchMeta {
   quota: { day: string; resetInMs: number; tools: Array<{ tool: string; used: number; limit: number; remaining: number }> };
 }
 
+// ── 主题工作台 ─────────────────────────────────────────────────
+
+export interface TopicDef {
+  key: string;
+  label: string;
+  group: string;
+  keyword: string;
+  code?: string;
+}
+
+export interface TimelineItem {
+  id: string;
+  source: 'wisburg' | 'jin10';
+  kind: 'report' | 'company' | 'feed' | 'article' | 'flash' | 'news';
+  kindLabel: string;
+  title: string;
+  summary?: string;
+  time: string;
+  ts: number;
+  url?: string;
+  category?: string;
+  companies?: string[];
+}
+
+export interface TopicFeed {
+  key: string;
+  keyword: string;
+  label: string;
+  code?: string;
+  items: TimelineItem[];
+  counts: Record<string, number>;
+  quote: (Quote & { _at: number }) | null;
+}
+
+export interface CompanyFacet {
+  name: string;
+  count: number;
+  refs: Array<{ id: string; title: string; time: string; category: string }>;
+}
+
+export const topics = {
+  list: (signal?: AbortSignal) =>
+    get<{ groups: Record<string, string>; topics: TopicDef[]; wisburg: boolean }>('/topics', signal),
+  feed: (key: string, customQuery?: string, signal?: AbortSignal) =>
+    get<TopicFeed>(`/topic/${encodeURIComponent(key)}${q({ q: customQuery })}`, signal),
+  companies: (signal?: AbortSignal) =>
+    get<{ scanned: number; facets: CompanyFacet[] }>('/companies', signal),
+};
+
 const listQ = (o: { first?: number; after?: string; query?: string }) =>
   q({ first: o.first, after: o.after, query: o.query });
 

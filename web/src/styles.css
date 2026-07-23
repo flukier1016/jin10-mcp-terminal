@@ -229,6 +229,12 @@ a {
   min-height: 0;
 }
 
+/* 主题工作台自己管滚动（左右两栏各自滚），外层不再滚 */
+.page-flush {
+  overflow: hidden;
+  padding-bottom: 12px;
+}
+
 /* ── 侧边导航 ───────────────────────────────────────────────── */
 
 .rail {
@@ -1560,6 +1566,286 @@ a {
   font-size: 8.5px;
   color: var(--fg-mute);
   opacity: 0.55;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   主题工作台 · 品种 / 公司 双维度 × 双数据源合并时间线
+   ══════════════════════════════════════════════════════════════ */
+
+.wb {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.wb-side,
+.wb-main {
+  min-height: 0;
+}
+
+.wb-group {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.wb-group-label {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: var(--fg-mute);
+  font-family: var(--mono);
+  padding: 2px 4px 6px;
+  text-transform: uppercase;
+}
+
+.wb-facet {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  color: var(--fg-dim);
+  transition: all 0.13s;
+}
+
+.wb-facet:hover {
+  background: color-mix(in srgb, var(--fg-mute) 16%, transparent);
+  color: var(--fg);
+}
+
+.wb-facet.on {
+  background: var(--gold-dim);
+  border-color: color-mix(in srgb, var(--gold) 38%, transparent);
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.wb-facet em {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-mute);
+  flex-shrink: 0;
+}
+
+.wb-facet.on em {
+  color: var(--gold);
+  opacity: 0.75;
+}
+
+.wb-side-foot {
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--fg-mute);
+}
+
+.wb-kw {
+  font-size: 11px;
+  color: var(--fg-mute);
+  font-family: var(--mono);
+}
+
+.tab-n {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  opacity: 0.65;
+  margin-left: 4px;
+}
+
+/* 主题对应的实时报价条 */
+.wb-quote {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(90deg, var(--gold-dim), transparent 60%);
+  text-align: left;
+  transition: background 0.16s;
+}
+
+.wb-quote:hover {
+  background: linear-gradient(90deg, var(--gold-dim), color-mix(in srgb, var(--fg-mute) 12%, transparent) 60%);
+}
+
+.wb-quote b {
+  display: block;
+  font-size: 14px;
+  font-weight: 640;
+}
+
+.wb-quote > div:first-child span {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--fg-mute);
+  letter-spacing: 0.06em;
+}
+
+.wb-quote-price {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 680;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.wb-quote-chg {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 640;
+  font-variant-numeric: tabular-nums;
+}
+
+.wb-quote-chg em {
+  display: block;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--fg-mute);
+  margin-top: 2px;
+}
+
+.wb-quote-age {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--fg-mute);
+}
+
+/* 合并时间线 */
+.tl-item {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px;
+  padding: 11px 15px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  position: relative;
+  transition: background 0.13s;
+}
+
+.tl-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  opacity: 0;
+  transition: opacity 0.13s;
+}
+
+.tl-item.wisburg::before {
+  background: var(--violet);
+}
+.tl-item.jin10::before {
+  background: var(--gold);
+}
+.tl-item:hover {
+  background: var(--panel-hover);
+}
+.tl-item:hover::before {
+  opacity: 1;
+}
+
+.tl-time {
+  text-align: right;
+  padding-top: 1px;
+}
+
+.tl-time b {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-dim);
+}
+
+.tl-time em {
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--fg-mute);
+}
+
+.tl-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.tl-badge {
+  padding: 1px 7px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tl-badge.wisburg {
+  background: var(--violet-dim);
+  border: 1px solid color-mix(in srgb, var(--violet) 34%, transparent);
+  color: var(--violet);
+}
+
+.tl-badge.jin10 {
+  background: var(--gold-dim);
+  border: 1px solid color-mix(in srgb, var(--gold) 34%, transparent);
+  color: var(--gold);
+}
+
+.tl-chip {
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-size: 10.5px;
+  background: color-mix(in srgb, var(--fg-mute) 18%, transparent);
+  color: var(--fg-dim);
+  transition: all 0.13s;
+}
+
+.tl-chip:hover {
+  background: var(--violet-dim);
+  color: var(--violet);
+}
+
+.tl-meta time {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--fg-mute);
+}
+
+.tl-title {
+  font-size: 13.5px;
+  line-height: 1.6;
+  font-weight: 550;
+  color: var(--fg);
+  word-break: break-word;
+  white-space: pre-line;
+}
+
+.tl-sum {
+  margin: 5px 0 0;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--fg-dim);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ══════════════════════════════════════════════════════════════
