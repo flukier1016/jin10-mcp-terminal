@@ -1,0 +1,14 @@
+# Railway / Nixpacks 构建配置
+# 单服务部署：Node 进程同时跑 API 和前端静态资源，不需要额外的 web server。
+
+[phases.setup]
+nixPkgs = ['nodejs_22']
+
+[phases.install]
+cmds = ['npm ci']
+
+[phases.build]
+cmds = ['npm run build']
+
+[start]
+cmd = 'npm start'
