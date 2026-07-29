@@ -17,11 +17,17 @@ import { createStreamRouter } from './routes/stream.js';
 import { createResearchRouter } from './routes/research.js';
 import { createReportRouter } from './routes/report.js';
 import { createTopicRouter } from './routes/topic.js';
+import { createMatrixRouter } from './routes/matrix.js';
+import { ResearchMatrix } from './matrix/store.js';
+import { WisburgMatrixSync } from './matrix/sync.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function main(): Promise<void> {
   assertConfig();
+  const matrix = new ResearchMatrix(config.matrix.dbPath);
+  let stopMatrixSync = false;
+  let matrixSyncPromise: Promise<unknown> | null = null;
 
   // ── 数据源 1：金十数据（实时行情 / 快讯 / 资讯 / 日历） ──────────
   let jin10Mcp: McpClient | null = null;
@@ -174,6 +180,13 @@ async function main(): Promise<void> {
   app.use('/api', createStreamRouter(bus, scheduler));
   app.use('/api', createReportRouter(scheduler, wisburg));
   app.use('/api', createTopicRouter(jin10, wisburg, scheduler));
+  app.use(
+    '/api/matrix',
+    createMatrixRouter(matrix, {
+      publicContent: config.matrix.publicContent,
+      adminToken: config.matrix.adminToken,
+    }),
+  );
   if (wisburg && wisburgLedger) {
     app.use('/api/research', createResearchRouter(wisburg, wisburgLedger));
   } else {
@@ -204,15 +217,39 @@ async function main(): Promise<void> {
   server.headersTimeout = 0;
   server.requestTimeout = 0;
 
+  if (config.matrix.autoSync && wisburg && wisburgLedger) {
+    const sync = new WisburgMatrixSync(wisburg, wisburgLedger, matrix);
+    matrixSyncPromise = sync
+      .run({
+        pageSize: config.matrix.pageSize,
+        maxPagesPerSource: config.matrix.maxPagesPerSource,
+        maxTotalDetails: config.matrix.maxTotalDetails,
+        maxReportDetails: config.matrix.maxReportDetails,
+        maxArticleDetails: config.matrix.maxArticleDetails,
+        concurrency: config.matrix.concurrency,
+        shouldStop: () => stopMatrixSync,
+        onProgress: (event) => {
+          if (event.phase === 'done' || event.failed || event.completed || event.calls % 10 === 0) {
+            log(`Matrix ${event.phase}: ${event.message}`);
+          }
+        },
+      })
+      .then((result) => log(`Matrix 自动同步完成: ${JSON.stringify(result)}`))
+      .catch((error) => log(`⚠️  Matrix 自动同步失败: ${error instanceof Error ? error.message : String(error)}`));
+  }
+
   let shuttingDown = false;
   const shutdown = async (sig: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
     log(`收到 ${sig}，正在退出…`);
+    stopMatrixSync = true;
     scheduler.stop();
     bus.closeAll();
+    await matrixSyncPromise?.catch(() => undefined);
     await jin10Mcp?.close();
     await wisburgMcp?.close();
+    matrix.close();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 3_000).unref();
   };

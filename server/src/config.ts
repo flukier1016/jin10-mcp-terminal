@@ -13,6 +13,7 @@ for (const p of [
 ]) {
   dotenv.config({ path: p, override: false, quiet: true });
 }
+const stateDir = resolveStateDir(process.env.STATE_DIR);
 
 interface NumberOptions {
   min?: number;
@@ -56,7 +57,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV ?? 'development',
   demoMode: parseBoolean(process.env.DEMO_MODE, false),
   corsOrigins: parseOrigins(process.env.CORS_ORIGIN),
-  stateDir: resolveStateDir(process.env.STATE_DIR),
+  stateDir,
 
   /** 金十数据 MCP。 */
   jin10: {
@@ -72,6 +73,36 @@ export const config = {
     protocolVersion: process.env.MCP_PROTOCOL_VERSION ?? '2025-11-25',
     /** 智堡未公布每日上限，这里给一个保守的本地保护值，可用环境变量覆盖。 */
     dailyLimit: parseNumber(process.env.WISBURG_DAILY_LIMIT, 1000, { min: 1, max: 1_000_000, integer: true }),
+  },
+
+  /** 智堡研报 Matrix：SQLite 本地库 + 可恢复批量同步。 */
+  matrix: {
+    dbPath: resolveMatrixPath(process.env.MATRIX_DB_PATH, stateDir),
+    publicContent: parseBoolean(process.env.MATRIX_PUBLIC_CONTENT, false),
+    autoSync: parseBoolean(process.env.WISBURG_MATRIX_AUTO_SYNC, false),
+    pageSize: parseNumber(process.env.WISBURG_SYNC_PAGE_SIZE, 100, { min: 1, max: 100, integer: true }),
+    maxPagesPerSource: parseNumber(process.env.WISBURG_SYNC_MAX_PAGES_PER_SOURCE, 900, {
+      min: 0,
+      max: 1_000_000,
+      integer: true,
+    }),
+    maxTotalDetails: parseNumber(process.env.WISBURG_SYNC_MAX_DETAIL_CALLS, 480, {
+      min: 0,
+      max: 1_000_000,
+      integer: true,
+    }),
+    maxReportDetails: parseNumber(process.env.WISBURG_SYNC_MAX_REPORT_DETAILS, 240, {
+      min: 0,
+      max: 1_000_000,
+      integer: true,
+    }),
+    maxArticleDetails: parseNumber(process.env.WISBURG_SYNC_MAX_ARTICLE_DETAILS, 240, {
+      min: 0,
+      max: 1_000_000,
+      integer: true,
+    }),
+    concurrency: parseNumber(process.env.WISBURG_SYNC_CONCURRENCY, 4, { min: 1, max: 12, integer: true }),
+    adminToken: process.env.MATRIX_ADMIN_TOKEN?.trim() ?? '',
   },
 
   quota: {
@@ -135,5 +166,11 @@ function assertHttpUrl(name: string, raw: string): void {
 
 function resolveStateDir(raw: string | undefined): string {
   const value = raw?.trim() || '.data';
+  return path.isAbsolute(value) ? value : path.resolve(projectRoot, value);
+}
+
+function resolveMatrixPath(raw: string | undefined, root: string): string {
+  const value = raw?.trim();
+  if (!value) return path.join(root, 'wisburg-matrix.sqlite');
   return path.isAbsolute(value) ? value : path.resolve(projectRoot, value);
 }

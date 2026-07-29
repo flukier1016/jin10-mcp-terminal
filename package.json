@@ -20,7 +20,10 @@
     "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace web",
     "test": "npm run build --workspace server && node --test",
     "verify": "npm run typecheck && npm run build && node --test",
-    "probe": "node scripts/probe.mjs"
+    "probe": "node scripts/probe.mjs",
+    "matrix:sync": "npm run build --workspace server && node server/dist/matrix/cli.js",
+    "matrix:stats": "npm run build --workspace server && node server/dist/matrix/cli.js --stats",
+    "matrix:reindex": "npm run build --workspace server && node server/dist/matrix/cli.js --reindex --stats"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

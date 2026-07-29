@@ -1,4 +1,4 @@
-export type View = 'terminal' | 'overview' | 'workbench' | 'research';
+export type View = 'terminal' | 'overview' | 'workbench' | 'matrix' | 'research';
 
 interface Props {
   view: View;
@@ -10,6 +10,7 @@ const ITEMS: Array<{ key: View; label: string; icon: string; hint: string }> = [
   { key: 'terminal', label: '终端', icon: '◧', hint: '实时行情 · K线 · 7×24快讯' },
   { key: 'overview', label: '总览', icon: '▦', hint: '按地区/品种汇总热力图' },
   { key: 'workbench', label: '主题', icon: '⊞', hint: '按品种/公司聚合：智堡研究 + 金十盘面同一条时间线' },
+  { key: 'matrix', label: '矩阵', icon: '▩', hint: '本地缓存的研报结论数据库' },
   { key: 'research', label: '研究', icon: '◈', hint: '智堡全部内容：研报 / 日报 / 文章 / 图表' },
 ];
 

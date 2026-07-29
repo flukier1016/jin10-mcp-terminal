@@ -87,6 +87,33 @@ npm run probe
 - 全文搜索 + 游标翻页
 - Markdown 正文渲染
 
+### 研究结论 Matrix（本地长期库）
+
+Matrix 把智堡的易失在线内容沉淀为可迁移的 SQLite 研究库，不再依赖每次打开页面都实时请求：
+
+- 9 路列表并发扫库，单页 100 条；按 `source + id` 去重，逐页写入游标检查点
+- 报告与文章正文分批补齐；进程中断、机器重启或重新部署后可继续，不重复拉已完成详情
+- 从原文的「结论 / 核心观点 / 投资要点 / Summary」等段落抽取可追溯结论，不调用模型补写事实
+- 自动生成主题、公司、观点、期限、地区、来源分组标签，并提供「主题 × 观点」二维矩阵
+- FTS5 trigram 全文索引可直接检索中文；网页端支持搜索、分面筛选和结论卡片
+- 实测智堡列表游标最多返回 10,000 条；触达分页上限会落盘标记。任一入口返回 429 后，账户级熔断状态会持久化到北京时间次日，避免重启后继续空打
+
+```bash
+# 默认：扫全部列表，并在约 500 次共享详情硬限流内保守拉 240 份报告 + 240 篇文章
+npm run matrix:sync
+
+# 查看库规模与各来源检查点；重跑本地结论和标签抽取，不访问智堡
+npm run matrix:stats
+npm run matrix:reindex
+
+# 精确控制本轮来源与预算
+npm run matrix:sync -- \
+  --sources=report:company,report:ib,article,report-detail,article-detail \
+  --detail-calls=480 --report-details=240 --article-details=240 --concurrency=4
+```
+
+数据库默认位于 `STATE_DIR/wisburg-matrix.sqlite`，`.data/` 已排除出 Git。迁移时复制 SQLite 文件及同目录额度账本即可。公网 API 默认只返回元数据、标签和结论；原始全文需要显式开启 `MATRIX_PUBLIC_CONTENT=true`，或使用 `MATRIX_ADMIN_TOKEN` 授权读取。请按智堡账户条款保存和使用缓存内容，不要把数据库提交到公开仓库。
+
 ### 一键导出报告
 顶栏「⤓ 导出报告」，服务端用内存快照生成完整市场日报 —— **导出本身不消耗任何金十额度**，可以随便点。
 
@@ -172,7 +199,7 @@ npm run build && npm start   # → http://localhost:8080
 
 ```bash
 npm run verify            # 类型检查 + 生产构建 + 内置测试
-npm run probe             # 对正在运行的实例检查 Web / health / universe / config
+npm run probe             # 对运行实例检查 Web / health / universe / config / Matrix
 ```
 
 GitHub Actions 会在 Ubuntu（Node 20/22）与 Windows（Node 22）上重复执行 `npm run verify`，防止平台差异回归。
@@ -210,7 +237,7 @@ docker compose up --build -d
 BASE_URL=http://localhost:8080 npm run probe
 ```
 
-Compose 会把 `terminal-data` 卷挂载到 `/app/data`。迁移机器时应同时迁移该卷，否则当天额度计数会从零开始。
+Compose 会把 `terminal-data` 卷挂载到 `/app/data`。迁移机器时应同时迁移该卷，否则 Matrix 数据和当天额度计数都会丢失。
 
 ### Railway
 
@@ -227,7 +254,11 @@ railway up            # 部署
 |---|:--:|---|
 | `JIN10_TOKEN` | ✅ | 金十 MCP Bearer Token |
 | `WISBURG_TOKEN` | | 智堡 API Key，留空则关闭研究模块 |
-| `STATE_DIR` | | 额度状态目录；挂载 Railway Volume 时填卷内路径 |
+| `STATE_DIR` | | Matrix 与额度状态目录；挂载 Railway Volume 时填卷内路径 |
+| `WISBURG_MATRIX_AUTO_SYNC` | | 默认 `false`；启用后每次启动在后台从检查点续跑 |
+| `WISBURG_SYNC_MAX_DETAIL_CALLS` | | 默认 `480`，给实测约 500 次的账户级详情硬限流留安全垫 |
+| `MATRIX_PUBLIC_CONTENT` | | 默认 `false`，公网不返回缓存全文 |
+| `MATRIX_ADMIN_TOKEN` | | Bearer Token；不公开全文时用于受控读取 |
 | `HOST` | | 默认 `0.0.0.0` |
 | `SUSTAIN_HOURS` | | 默认 `24`（额度铺满 24 小时 = 64 秒/次） |
 | `POLL_WHEN_IDLE` | | 默认 `true`（无人访问也持续刷新） |
@@ -238,7 +269,7 @@ railway up            # 部署
 
 健康检查：`GET /api/health`
 
-> Railway 要真正 24/7 常驻，需要使用不会休眠的计划。若需跨部署保留当天额度计数，请挂载 Volume 并把 `STATE_DIR` 指向该卷；保持单副本运行。
+> Railway 要真正 24/7 常驻，需要使用不会休眠的计划。若需跨部署保留 Matrix 和当天额度计数，请先挂载 Volume，把 `STATE_DIR` 指向卷内路径并保持单副本运行。未挂卷时每次部署都会得到空库。
 
 ### 前后端分离
 
@@ -280,6 +311,9 @@ CORS_ORIGIN=https://terminal.example.com npm start
 | GET | `/api/research/feed\|daily\|articles\|images` | 智堡列表 |
 | GET | `/api/research/reports/:category` | 智堡研报（`ib` `company` `am` `archive` `ec`） |
 | GET | `/api/research/report/:category/:id` · `/api/research/article/:id` | 智堡详情 |
+| GET | `/api/matrix/stats` · `/api/matrix/facets` · `/api/matrix/grid` | Matrix 规模、分面与二维聚合 |
+| GET | `/api/matrix/search?q=&topic=&company=&stance=` | 本地全文搜索与多维筛选，不消耗智堡额度 |
+| GET | `/api/matrix/document/:docKey` | 单条研究；`?content=1` 读取全文时受 Matrix 权限保护 |
 
 错误映射：工具业务错误 → `502`，触发限流 → `429`，协议错误 → `502`。
 
@@ -298,10 +332,12 @@ server/src/
   core/bus.ts         SSE 扇出中心
   core/cache.ts       TTL 缓存 + 在途请求合并
   core/universe.ts    33 品种宇宙的地区/资产分类
+  matrix/             SQLite 存储、结论/标签抽取、断点同步与命令行
   routes/             REST + SSE 路由
 web/src/
   components/         Header Sidebar Watchlist Hero Chart FlashFeed
-                      NewsPanel CalendarPanel Overview Research CodePicker
+                      NewsPanel CalendarPanel Overview Research ResearchMatrix
+                      CodePicker
   lib/                api / runtime / useStream / format
   styles.css          设计系统（双主题 + 双涨跌配色）
 scripts/
@@ -315,4 +351,4 @@ compose.yaml          单服务 + 持久化额度卷
 
 ## 技术栈
 
-Node 20+ · TypeScript · Express 5 · React 19 · Vite 6 · lightweight-charts 5 · 零 UI 框架（手写 CSS 设计系统）
+Node 20+ · TypeScript · Express 5 · React 19 · Vite 6 · better-sqlite3 / FTS5 · lightweight-charts 5 · 零 UI 框架（手写 CSS 设计系统）

@@ -22,7 +22,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY server/package.json ./server/package.json
 COPY web/package.json ./web/package.json
-RUN npm ci --omit=dev --ignore-scripts \
+RUN npm ci --omit=dev \
   && npm cache clean --force \
   && mkdir -p /app/data \
   && chown node:node /app/data
