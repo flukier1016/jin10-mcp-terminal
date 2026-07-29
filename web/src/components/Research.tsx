@@ -110,17 +110,22 @@ export function Research({ onOpen }: Props) {
             <span>WISBURG · MCP</span>
           </div>
           <div className="search" style={{ flex: 1, minWidth: 200 }}>
-            <span style={{ color: 'var(--fg-mute)', fontSize: 12 }}>⌕</span>
+            <span style={{ color: 'var(--fg-mute)', fontSize: 12 }} aria-hidden="true">
+              ⌕
+            </span>
             <input
               value={kw}
+              aria-label="搜索智堡研究"
               placeholder="搜索研报、文章、纪要…"
               onChange={(e) => setKw(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && setQuery(kw.trim())}
             />
             {kw && (
               <button
+                type="button"
                 className="close"
                 style={{ width: 18, height: 18, fontSize: 13 }}
+                aria-label="清空研究搜索"
                 onClick={() => {
                   setKw('');
                   setQuery('');
@@ -193,7 +198,19 @@ export function Research({ onOpen }: Props) {
           {!busy && !items.length && <div className="empty">{query ? `「${query}」没有结果` : '暂无内容'}</div>}
 
           {items.map((it) => (
-            <article className="res-card" key={it.id} onClick={() => open(it)}>
+            <article
+              className="res-card"
+              key={it.id}
+              onClick={() => open(it)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                open(it);
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label={`打开${source.label}：${it.title}`}
+            >
               <div className="res-card-head">
                 <span className="res-badge">{source.label}</span>
                 <time className="num">{it.time ? bjFull(it.time) : ''}</time>
@@ -246,16 +263,24 @@ export function ResearchModal({
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="research-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-head">
-          <span className="panel-title">智堡 · {target.kind === 'article' ? '文章' : '研报'}</span>
+          <span className="panel-title" id="research-modal-title">
+            智堡 · {target.kind === 'article' ? '文章' : '研报'}
+          </span>
           <div className="spacer" />
           {data?.url && (
             <a className="chip" href={data.url} target="_blank" rel="noreferrer noopener">
               原文 ↗
             </a>
           )}
-          <button className="close" onClick={onClose}>
+          <button type="button" className="close" onClick={onClose} aria-label="关闭智堡详情">
             ×
           </button>
         </div>

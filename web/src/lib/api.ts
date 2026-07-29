@@ -1,4 +1,5 @@
 import type { CalendarEvent, FlashItem, KlineSeries, NewsDetail, NewsItem, Paged, Quote, QuoteCode } from '../types';
+import { apiUrl } from './runtime';
 
 interface Envelope<T> {
   ok: boolean;
@@ -15,7 +16,7 @@ export class ApiError extends Error {
 }
 
 async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(`/api${path}`, { signal, headers: { Accept: 'application/json' } });
+  const res = await fetch(apiUrl(path), { signal, headers: { Accept: 'application/json' } });
   let body: Envelope<T>;
   try {
     body = (await res.json()) as Envelope<T>;
@@ -100,12 +101,12 @@ export interface UniverseMeta {
   regions: Record<string, string>;
   assets: Record<string, string>;
   coverage: Coverage;
-  sources: { jin10: boolean; wisburg: boolean };
+  sources: { jin10: boolean; wisburg: boolean; demo?: boolean };
 }
 
 /** 切换服务端覆盖范围（core = 9 品种 5 分钟；full = 33 品种）。 */
 export async function setScope(scope: 'core' | 'full'): Promise<Coverage> {
-  const res = await fetch('/api/scope', {
+  const res = await fetch(apiUrl('/scope'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ scope }),

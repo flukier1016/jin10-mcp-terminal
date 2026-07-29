@@ -1,4 +1,4 @@
-import { McpClient, McpRateLimitError } from './client.js';
+import { McpRateLimitError } from './client.js';
 import type { QuotaLedger } from '../core/quota.js';
 import type {
   CalendarEvent,
@@ -10,6 +10,12 @@ import type {
   Quote,
   QuoteCode,
 } from '../types.js';
+
+/** 生产 MCP 客户端和本地演示客户端共同遵循的最小数据接口。 */
+export interface Jin10Client {
+  callTool<T>(name: string, args?: Record<string, unknown>): Promise<T>;
+  readResource<T>(uri: string): Promise<T>;
+}
 
 /** 金十已验证可用的 8 个工具。 */
 export const TOOLS = [
@@ -33,7 +39,7 @@ export type Jin10Tool = (typeof TOOLS)[number];
  */
 export class Jin10Service {
   constructor(
-    private readonly mcp: McpClient,
+    private readonly mcp: Jin10Client,
     private readonly ledger: QuotaLedger,
   ) {}
 

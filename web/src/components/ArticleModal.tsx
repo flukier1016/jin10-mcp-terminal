@@ -40,16 +40,24 @@ export function ArticleModal({ id, onClose }: Props) {
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="article-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-head">
-          <span className="panel-title">资讯详情</span>
+          <span className="panel-title" id="article-modal-title">
+            资讯详情
+          </span>
           <div className="spacer" />
           {data?.url && (
             <a className="chip" href={data.url} target="_blank" rel="noreferrer noopener">
               金十原文 ↗
             </a>
           )}
-          <button className="close" onClick={onClose}>
+          <button type="button" className="close" onClick={onClose} aria-label="关闭资讯详情">
             ×
           </button>
         </div>

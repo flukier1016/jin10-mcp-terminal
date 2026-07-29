@@ -14,9 +14,12 @@
     "dev": "concurrently -n server,web -c cyan,magenta \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "npm run dev --workspace server",
     "dev:web": "npm run dev --workspace web",
+    "demo": "npm run build && node scripts/start-demo.mjs",
     "build": "npm run build --workspace server && npm run build --workspace web",
     "start": "node server/dist/index.js",
     "typecheck": "npm run typecheck --workspace server && npm run typecheck --workspace web",
+    "test": "npm run build --workspace server && node --test",
+    "verify": "npm run typecheck && npm run build && node --test",
     "probe": "node scripts/probe.mjs"
   },
   "devDependencies": {

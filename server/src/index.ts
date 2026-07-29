@@ -5,7 +5,8 @@ import compression from 'compression';
 
 import { config, assertConfig, wisburgEnabled } from './config.js';
 import { McpClient } from './mcp/client.js';
-import { Jin10Service, TOOLS } from './mcp/jin10.js';
+import { Jin10Service, TOOLS, type Jin10Client } from './mcp/jin10.js';
+import { DemoJin10Client } from './mcp/demo.js';
 import { WisburgService, WISBURG_TOOLS } from './mcp/wisburg.js';
 import { QuotaLedger } from './core/quota.js';
 import { StreamBus } from './core/bus.js';
@@ -23,69 +24,92 @@ async function main(): Promise<void> {
   assertConfig();
 
   // ── 数据源 1：金十数据（实时行情 / 快讯 / 资讯 / 日历） ──────────
-  const jin10Mcp = new McpClient({
-    url: config.jin10.url,
-    token: config.jin10.token,
-    protocolVersion: config.jin10.protocolVersion,
-    clientName: 'jin10-mcp-terminal',
-    clientVersion: '1.0.0',
-  });
-  wireLogs(jin10Mcp, '金十');
+  let jin10Mcp: McpClient | null = null;
+  let jin10Client: Jin10Client;
+  if (config.demoMode) {
+    jin10Client = new DemoJin10Client();
+    log('演示模式已启用：使用本地确定性数据，不连接金十或智堡');
+  } else {
+    jin10Mcp = new McpClient({
+      url: config.jin10.url,
+      token: config.jin10.token,
+      protocolVersion: config.jin10.protocolVersion,
+      clientName: 'jin10-mcp-terminal',
+      clientVersion: '1.0.0',
+    });
+    jin10Client = jin10Mcp;
+    wireLogs(jin10Mcp, '金十');
 
-  const [tools, resources] = await Promise.all([jin10Mcp.listTools(), jin10Mcp.listResources()]);
-  log(`金十工具 ${tools.length} 个: ${tools.map((t) => t.name).join(', ')}`);
-  log(`金十资源 ${resources.length} 个: ${resources.map((r) => r.uri).join(', ')}`);
-  const missing = TOOLS.filter((t) => !tools.some((x) => x.name === t));
-  if (missing.length) log(`⚠️  金十缺少预期工具: ${missing.join(', ')}`);
+    const [tools, resources] = await Promise.all([jin10Mcp.listTools(), jin10Mcp.listResources()]);
+    log(`金十工具 ${tools.length} 个: ${tools.map((t) => t.name).join(', ')}`);
+    log(`金十资源 ${resources.length} 个: ${resources.map((r) => r.uri).join(', ')}`);
+    const missing = TOOLS.filter((t) => !tools.some((x) => x.name === t));
+    if (missing.length) log(`⚠️  金十缺少预期工具: ${missing.join(', ')}`);
+  }
 
-  const jin10Ledger = new QuotaLedger(config.quota.dailyLimit, config.quota.reserveRatio, config.quota.sustainHours);
-  const jin10 = new Jin10Service(jin10Mcp, jin10Ledger);
+  const jin10Ledger = new QuotaLedger(
+    config.quota.dailyLimit,
+    config.quota.reserveRatio,
+    config.quota.sustainHours,
+    path.join(config.stateDir, config.demoMode ? 'demo-quota.json' : 'jin10-quota.json'),
+  );
+  const jin10 = new Jin10Service(jin10Client, jin10Ledger);
   const bus = new StreamBus();
   const scheduler = new Scheduler(jin10, jin10Ledger, bus);
   await scheduler.start();
 
-  jin10Mcp.on('notification', (method: string, params: unknown) => {
-    log(`金十通知: ${method}`);
-    if (method === 'notifications/resources/list_changed') {
-      void jin10
-        .quoteCodes()
-        .then((codes) => {
-          scheduler.codes = codes;
-          bus.broadcast({ type: 'status', mcp: 'up', detail: '品种列表已更新' });
-        })
-        .catch(() => undefined);
-    } else if (method === 'notifications/message') {
-      log(`金十日志: ${JSON.stringify(params).slice(0, 300)}`);
-    }
-  });
-  jin10Mcp.openNotificationStream();
-  await jin10Mcp.setLogLevel('info').catch(() => undefined);
+  if (jin10Mcp) {
+    jin10Mcp.on('notification', (method: string, params: unknown) => {
+      log(`金十通知: ${method}`);
+      if (method === 'notifications/resources/list_changed') {
+        void jin10
+          .quoteCodes()
+          .then((codes) => {
+            scheduler.codes = codes;
+            bus.broadcast({ type: 'status', mcp: 'up', detail: '品种列表已更新' });
+          })
+          .catch(() => undefined);
+      } else if (method === 'notifications/message') {
+        log(`金十日志: ${JSON.stringify(params).slice(0, 300)}`);
+      }
+    });
+    jin10Mcp.openNotificationStream();
+    await jin10Mcp.setLogLevel('info').catch(() => undefined);
+  }
 
   // ── 数据源 2：智堡 Wisburg（研报 / 文章 / 市场日报 / 图表） ──────
   let wisburg: WisburgService | null = null;
   let wisburgLedger: QuotaLedger | null = null;
+  let wisburgMcp: McpClient | null = null;
   if (wisburgEnabled()) {
-    const wisMcp = new McpClient({
+    wisburgMcp = new McpClient({
       url: config.wisburg.url,
       token: config.wisburg.token,
       protocolVersion: config.wisburg.protocolVersion,
       clientName: 'jin10-mcp-terminal',
       clientVersion: '1.0.0',
     });
-    wireLogs(wisMcp, '智堡');
+    wireLogs(wisburgMcp, '智堡');
     try {
-      const wt = await wisMcp.listTools();
+      const wt = await wisburgMcp.listTools();
       log(`智堡工具 ${wt.length} 个: ${wt.map((t) => t.name).join(', ')}`);
       const miss = WISBURG_TOOLS.filter((t) => !wt.some((x) => x.name === t));
       if (miss.length) log(`⚠️  智堡缺少预期工具: ${miss.join(', ')}`);
-      wisburgLedger = new QuotaLedger(config.wisburg.dailyLimit, config.quota.reserveRatio, config.quota.sustainHours);
-      wisburg = new WisburgService(wisMcp, wisburgLedger);
+      wisburgLedger = new QuotaLedger(
+        config.wisburg.dailyLimit,
+        config.quota.reserveRatio,
+        config.quota.sustainHours,
+        path.join(config.stateDir, 'wisburg-quota.json'),
+      );
+      wisburg = new WisburgService(wisburgMcp, wisburgLedger);
     } catch (err) {
       // 智堡不可用不应拖垮金十终端
       log(`⚠️  智堡接入失败，该模块已停用: ${err instanceof Error ? err.message : String(err)}`);
+      await wisburgMcp.close().catch(() => undefined);
+      wisburgMcp = null;
     }
   } else {
-    log('未配置 WISBURG_TOKEN，智堡研究模块已停用');
+    log(config.demoMode ? '演示模式下智堡研究模块已停用' : '未配置 WISBURG_TOKEN，智堡研究模块已停用');
   }
 
   // ── HTTP ────────────────────────────────────────────────────────
@@ -101,12 +125,18 @@ async function main(): Promise<void> {
   );
   app.use(express.json({ limit: '64kb' }));
 
-  if (config.corsOrigin) {
+  if (config.corsOrigins.length) {
     app.use((req, res, next) => {
-      res.setHeader('Access-Control-Allow-Origin', config.corsOrigin);
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-      if (req.method === 'OPTIONS') return res.sendStatus(204);
+      const requestOrigin = req.headers.origin?.replace(/\/+$/, '');
+      const allowAll = config.corsOrigins.includes('*');
+      const allowed = allowAll ? '*' : requestOrigin && config.corsOrigins.includes(requestOrigin) ? requestOrigin : '';
+      if (allowed) {
+        res.setHeader('Access-Control-Allow-Origin', allowed);
+        res.setHeader('Vary', 'Origin');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      }
+      if (req.method === 'OPTIONS') return allowed ? res.sendStatus(204) : res.sendStatus(403);
       next();
     });
   }
@@ -121,7 +151,7 @@ async function main(): Promise<void> {
         regions: REGION_LABEL,
         assets: ASSET_LABEL,
         coverage: scheduler.coverage(),
-        sources: { jin10: true, wisburg: wisburg !== null },
+        sources: { jin10: !config.demoMode, wisburg: wisburg !== null, demo: config.demoMode },
       },
     });
   });
@@ -162,9 +192,9 @@ async function main(): Promise<void> {
     });
   });
 
-  const server = app.listen(config.port, () => {
+  const server = app.listen(config.port, config.host, () => {
     const cov = scheduler.coverage();
-    log(`金十实时终端已启动 → http://localhost:${config.port}`);
+    log(`金十实时终端已启动 → http://localhost:${config.port}（监听 ${config.host}）`);
     log(
       `额度策略: 每工具 ${config.quota.dailyLimit}/天，保留 ${Math.round(config.quota.reserveRatio * 100)}%，` +
         `铺满 ${config.quota.sustainHours}h ⇒ 行情 ${Math.round(cov.quoteIntervalMs / 1000)}s/次、K线 ${Math.round(cov.klineIntervalMs / 1000)}s/次`,
@@ -174,11 +204,15 @@ async function main(): Promise<void> {
   server.headersTimeout = 0;
   server.requestTimeout = 0;
 
+  let shuttingDown = false;
   const shutdown = async (sig: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     log(`收到 ${sig}，正在退出…`);
     scheduler.stop();
     bus.closeAll();
-    await jin10Mcp.close();
+    await jin10Mcp?.close();
+    await wisburgMcp?.close();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 3_000).unref();
   };

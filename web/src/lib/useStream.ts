@@ -9,6 +9,7 @@ import type {
   QuoteCode,
   QuotaSnapshot,
 } from '../types';
+import { apiUrl } from './runtime';
 
 export interface QuoteTick {
   quote: Quote;
@@ -71,7 +72,7 @@ export function useStream(codes: string[], focus: string | null): StreamState {
 
     const connect = () => {
       if (!alive) return;
-      const url = `/api/stream?codes=${encodeURIComponent(codes.join(','))}&focus=${encodeURIComponent(focus ?? '')}`;
+      const url = apiUrl(`/stream?codes=${encodeURIComponent(codes.join(','))}&focus=${encodeURIComponent(focus ?? '')}`);
       es = new EventSource(url);
 
       es.onopen = () => {

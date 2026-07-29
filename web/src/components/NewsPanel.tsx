@@ -71,9 +71,12 @@ export function NewsPanel({ live, onOpen }: Props) {
     <>
       <div className="kw-row" style={{ paddingTop: 9, paddingBottom: 9 }}>
         <div className="search" style={{ flex: 1 }}>
-          <span style={{ color: 'var(--fg-mute)', fontSize: 12 }}>⌕</span>
+          <span style={{ color: 'var(--fg-mute)', fontSize: 12 }} aria-hidden="true">
+            ⌕
+          </span>
           <input
             value={kw}
+            aria-label="搜索深度资讯"
             placeholder="搜索文章…"
             onChange={(e) => setKw(e.target.value)}
             onKeyDown={(e) => {
@@ -85,8 +88,10 @@ export function NewsPanel({ live, onOpen }: Props) {
           />
           {kw && (
             <button
+              type="button"
               className="close"
               style={{ width: 18, height: 18, fontSize: 13 }}
+              aria-label="清空资讯搜索"
               onClick={() => {
                 setKw('');
                 setQuery('');
@@ -115,7 +120,19 @@ export function NewsPanel({ live, onOpen }: Props) {
         {!busy && !items.length && <div className="empty">{query ? '没有匹配的文章' : '等待资讯…'}</div>}
 
         {items.map((n) => (
-          <article key={n.id} className="news-item" onClick={() => onOpen(n.id)}>
+          <article
+            key={n.id}
+            className="news-item"
+            onClick={() => onOpen(n.id)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return;
+              event.preventDefault();
+              onOpen(n.id);
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label={`打开资讯：${n.title}`}
+          >
             <div className="news-title">{n.title}</div>
             {n.introduction && <div className="news-intro">{n.introduction}</div>}
             <div className="news-meta">{bjFull(n.time)}</div>

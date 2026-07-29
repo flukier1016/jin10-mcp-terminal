@@ -84,15 +84,24 @@ export function FlashFeed({ live, fresh, now }: Props) {
       <div className="panel-head">
         <span className="panel-title">7×24 快讯</span>
         <div className="search" style={{ flex: 1, marginLeft: 8 }}>
-          <span style={{ color: 'var(--fg-mute)', fontSize: 12 }}>⌕</span>
+          <span style={{ color: 'var(--fg-mute)', fontSize: 12 }} aria-hidden="true">
+            ⌕
+          </span>
           <input
             value={kw}
+            aria-label="搜索快讯"
             placeholder="搜索快讯…"
             onChange={(e) => setKw(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit(kw)}
           />
           {kw && (
-            <button className="close" style={{ width: 18, height: 18, fontSize: 13 }} onClick={() => submit('')}>
+            <button
+              type="button"
+              className="close"
+              style={{ width: 18, height: 18, fontSize: 13 }}
+              onClick={() => submit('')}
+              aria-label="清空快讯搜索"
+            >
               ×
             </button>
           )}

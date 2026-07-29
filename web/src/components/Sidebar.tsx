@@ -15,19 +15,21 @@ const ITEMS: Array<{ key: View; label: string; icon: string; hint: string }> = [
 
 export function Sidebar({ view, onView, wisburgOn }: Props) {
   return (
-    <nav className="rail">
+    <nav className="rail" aria-label="主导航">
       {ITEMS.map((it) => {
         // 主题页即使没有智堡也能用（只是少了研究那一半），研究页则完全依赖智堡
         const disabled = it.key === 'research' && !wisburgOn;
         return (
           <button
+            type="button"
             key={it.key}
             className={`rail-btn${view === it.key ? ' on' : ''}`}
             onClick={() => !disabled && onView(it.key)}
             disabled={disabled}
             title={disabled ? '未配置 WISBURG_TOKEN' : it.hint}
+            aria-current={view === it.key ? 'page' : undefined}
           >
-            <i>{it.icon}</i>
+            <i aria-hidden="true">{it.icon}</i>
             <span>{it.label}</span>
           </button>
         );

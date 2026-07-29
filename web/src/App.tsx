@@ -148,18 +148,27 @@ export default function App() {
 
   return (
     <div className="app">
-      <Header
-        conn={stream.conn}
-        quota={stream.quota}
-        now={now}
-        scheme={scheme}
-        onScheme={() => setScheme((s) => (s === 'cn' ? 'western' : 'cn'))}
-        theme={theme}
-        onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-        onOpenCodes={() => setPickerOpen(true)}
-        showCodes={view === 'terminal'}
-        wisburgOn={meta?.sources.wisburg ?? false}
-      />
+      <div className="topbar">
+        <Header
+          conn={stream.conn}
+          quota={stream.quota}
+          now={now}
+          scheme={scheme}
+          onScheme={() => setScheme((s) => (s === 'cn' ? 'western' : 'cn'))}
+          theme={theme}
+          onTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+          onOpenCodes={() => setPickerOpen(true)}
+          showCodes={view === 'terminal'}
+          wisburgOn={meta?.sources.wisburg ?? false}
+          demo={meta?.sources.demo ?? false}
+        />
+        {stream.conn !== 'live' && (
+          <div className="connection-banner" role="status" aria-live="polite">
+            <b>{stream.conn === 'connecting' ? '正在建立数据连接' : '数据连接正在恢复'}</b>
+            <span>{stream.conn === 'connecting' ? '首批行情到达后会自动更新。' : '页面保留最近一次快照，无需手动刷新。'}</span>
+          </div>
+        )}
+      </div>
 
       <div className="shell">
         <Sidebar view={view} onView={setView} wisburgOn={meta?.sources.wisburg ?? false} />

@@ -22,18 +22,27 @@ export function createApiRouter(jin10: Jin10Service, scheduler: Scheduler): Rout
   const ok = <T>(data: T) => ({ ok: true as const, data });
 
   router.get('/health', (_req, res) => {
+    const status = scheduler.status;
     res.json(
       ok({
         status: 'ok',
-        clients: scheduler.status.clients,
-        lastError: scheduler.status.lastError,
+        clients: status.clients,
+        lastError: status.lastError,
+        quotaPersistence: status.quotaPersistence,
         uptime: Math.round(process.uptime()),
       }),
     );
   });
 
   router.get('/config', (_req, res) => {
-    res.json(ok({ watchlist: config.watchlist, sustainHours: config.quota.sustainHours }));
+    res.json(
+      ok({
+        mode: config.demoMode ? 'demo' : 'live',
+        watchlist: config.watchlist,
+        sustainHours: config.quota.sustainHours,
+        quotaPersistence: scheduler.status.quotaPersistence,
+      }),
+    );
   });
 
   router.get('/quota', (_req, res) => res.json(ok(scheduler.quotaSnapshot())));

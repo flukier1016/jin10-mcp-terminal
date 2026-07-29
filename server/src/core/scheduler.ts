@@ -83,7 +83,12 @@ export class Scheduler {
   }
 
   get status() {
-    return { lastError: this.lastError, clients: this.bus.size, uptimeMs: Date.now() - this.startedAt };
+    return {
+      lastError: this.lastError,
+      clients: this.bus.size,
+      uptimeMs: Date.now() - this.startedAt,
+      quotaPersistence: this.ledger.persistenceStatus,
+    };
   }
 
   // ── 循环骨架 ───────────────────────────────────────────────────

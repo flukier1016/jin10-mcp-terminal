@@ -46,17 +46,33 @@ export function CodePicker({ codes, selected, onToggle, onClose }: Props) {
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="code-picker-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-head">
-          <span className="panel-title">添加品种</span>
+          <span className="panel-title" id="code-picker-title">
+            添加品种
+          </span>
           <div className="search" style={{ flex: 1 }}>
-            <span style={{ color: 'var(--fg-mute)', fontSize: 12 }}>⌕</span>
-            <input autoFocus value={kw} placeholder="搜索代码或名称，如 XAU / 黄金" onChange={(e) => setKw(e.target.value)} />
+            <span style={{ color: 'var(--fg-mute)', fontSize: 12 }} aria-hidden="true">
+              ⌕
+            </span>
+            <input
+              autoFocus
+              value={kw}
+              aria-label="搜索品种代码或名称"
+              placeholder="搜索代码或名称，如 XAU / 黄金"
+              onChange={(e) => setKw(e.target.value)}
+            />
           </div>
           <span className="panel-sub" style={{ margin: 0 }}>
             已选 {selected.length}
           </span>
-          <button className="close" onClick={onClose}>
+          <button type="button" className="close" onClick={onClose} aria-label="关闭品种选择器">
             ×
           </button>
         </div>
@@ -79,10 +95,12 @@ export function CodePicker({ codes, selected, onToggle, onClose }: Props) {
               <div className="code-grid">
                 {g.items.map((c) => (
                   <button
+                    type="button"
                     key={c.code}
                     className={`code-cell${selected.includes(c.code) ? ' on' : ''}`}
                     onClick={() => onToggle(c.code)}
                     title={`${c.code} · ${c.name}`}
+                    aria-pressed={selected.includes(c.code)}
                   >
                     <b>{c.code}</b>
                     <span>{c.name}</span>

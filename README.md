@@ -2,7 +2,24 @@
 
 通过**标准 MCP 协议**接入 [金十数据](https://mcp.jin10.com) 与 [智堡 Wisburg](https://mcp.wisburg.com) 的实时财经终端。
 
-一个 Node 进程同时承担 MCP 客户端、额度调度器、SSE 广播器与前端静态托管，Railway 上只需要部署一个服务。
+一个 Node 进程同时承担 MCP 客户端、额度调度器、SSE 广播器与前端静态托管，可直接运行在 macOS、Linux、Windows、Docker 或 Railway；也支持前后端分离部署。
+
+---
+
+## 60 秒无密钥体验
+
+Node 22 是推荐版本（仓库含 `.nvmrc`），最低支持 Node 20。
+
+```bash
+npm ci
+npm run demo
+```
+
+打开 `http://localhost:8080`。页面会明确显示 `DEMO`，使用本地确定性演示数据，不访问金十或智堡，也不消耗真实额度。另开一个终端可做端到端探测：
+
+```bash
+npm run probe
+```
 
 ---
 
@@ -19,7 +36,7 @@
 | **双通道并行** | `get_quote` 与 `get_kline` 是两套独立的 1500/天，合计 **2700 次/天 ≈ 32 秒一次调用** |
 | **加权最陈旧优先** | 宏观锚（黄金/原油/美元/美股/中国）刷得快，长尾慢慢补，冷启动一次性冲满 |
 | **在途请求合并** | 同一秒 10 个页面点开同一根 K 线 = 1 次真实调用 |
-| **本地额度账本** | 按北京时间自然日计数，快耗尽时自动拉长间隔而不是撞墙 429 |
+| **持久化额度账本** | 按北京时间自然日计数并写入 `STATE_DIR`，重启/重部署后继续当天计数 |
 
 ### 覆盖范围与刷新率的取舍
 
@@ -86,9 +103,10 @@ curl "http://localhost:8080/api/report?format=md&flash=40&news=10&star=3&researc
 ```
 
 ### 通用
-- 日间 / 夜间主题（跟随系统，可手动覆盖，对比度 AAA 级）
+- 日间 / 夜间主题（跟随系统，可手动覆盖，按 WCAG AA 可读性设计）
 - 额度水位条常驻顶栏
-- 完全响应式，手机到宽屏
+- 响应式交易工作区：手机端横向自选、紧凑头部与四列日历，宽屏端三栏并行
+- 键盘焦点、语义化弹层、连接恢复提示与减少动态效果支持
 
 ---
 
@@ -135,10 +153,13 @@ initialize → notifications/initialized → tools/list / resources/list → too
 
 ## 本地运行
 
+实盘模式先准备环境变量：
+
 ```bash
-npm install
-cp .env.example .env      # 填入 JIN10_TOKEN（必需）与 WISBURG_TOKEN（可选）
-npm run dev               # server :8080 + vite :5173
+npm ci
+cp .env.example .env      # Windows PowerShell：Copy-Item .env.example .env
+# 编辑 .env：填写 JIN10_TOKEN；WISBURG_TOKEN 可选
+npm run dev               # server :8080 + Vite :5173
 ```
 
 生产模式（同一进程托管前端）：
@@ -147,9 +168,51 @@ npm run dev               # server :8080 + vite :5173
 npm run build && npm start   # → http://localhost:8080
 ```
 
+完整本地质量门：
+
+```bash
+npm run verify            # 类型检查 + 生产构建 + 内置测试
+npm run probe             # 对正在运行的实例检查 Web / health / universe / config
+```
+
+GitHub Actions 会在 Ubuntu（Node 20/22）与 Windows（Node 22）上重复执行 `npm run verify`，防止平台差异回归。
+
 ---
 
-## 部署到 Railway
+## 可迁移部署
+
+| 方式 | 入口 | 适用场景 |
+|---|---|---|
+| 单进程 | `npm run build && npm start` | VPS、Windows 服务、macOS/Linux 本机 |
+| Docker | `docker compose up --build` | 任意容器平台；默认持久化额度账本 |
+| Railway | `railway up` | 仓库内置 Nixpacks 与健康检查配置 |
+| 前后端分离 | `VITE_API_BASE_URL` + `CORS_ORIGIN` | 静态 CDN 前端 + 独立 API 服务 |
+
+### Docker
+
+无密钥验收：
+
+```bash
+DEMO_MODE=true docker compose up --build
+```
+
+PowerShell：
+
+```powershell
+$env:DEMO_MODE = "true"
+docker compose up --build
+```
+
+实盘运行：先从 `.env.example` 创建 `.env` 并填写密钥，再运行：
+
+```bash
+docker compose up --build -d
+BASE_URL=http://localhost:8080 npm run probe
+```
+
+Compose 会把 `terminal-data` 卷挂载到 `/app/data`。迁移机器时应同时迁移该卷，否则当天额度计数会从零开始。
+
+### Railway
 
 仓库已包含 `railway.json` 与 `nixpacks.toml`，单服务即可。
 
@@ -164,6 +227,8 @@ railway up            # 部署
 |---|:--:|---|
 | `JIN10_TOKEN` | ✅ | 金十 MCP Bearer Token |
 | `WISBURG_TOKEN` | | 智堡 API Key，留空则关闭研究模块 |
+| `STATE_DIR` | | 额度状态目录；挂载 Railway Volume 时填卷内路径 |
+| `HOST` | | 默认 `0.0.0.0` |
 | `SUSTAIN_HOURS` | | 默认 `24`（额度铺满 24 小时 = 64 秒/次） |
 | `POLL_WHEN_IDLE` | | 默认 `true`（无人访问也持续刷新） |
 | `ALWAYS_ON_UNIVERSE` | | 默认 `true`（始终覆盖 33 个品种） |
@@ -173,7 +238,23 @@ railway up            # 部署
 
 健康检查：`GET /api/health`
 
-> Railway 会休眠无流量的服务。要真正 24/7 常驻，需要保证服务不被休眠（付费计划或外部保活）。
+> Railway 要真正 24/7 常驻，需要使用不会休眠的计划。若需跨部署保留当天额度计数，请挂载 Volume 并把 `STATE_DIR` 指向该卷；保持单副本运行。
+
+### 前后端分离
+
+构建前端时设置 API 的公开 Origin：
+
+```bash
+VITE_API_BASE_URL=https://terminal-api.example.com npm run build --workspace web
+```
+
+后端设置：
+
+```bash
+CORS_ORIGIN=https://terminal.example.com npm start
+```
+
+多个前端 Origin 用逗号分隔。`VITE_*` 会进入浏览器构建产物，禁止在其中放任何 token。
 
 ---
 
@@ -209,9 +290,10 @@ railway up            # 部署
 ```
 server/src/
   mcp/client.ts       Streamable HTTP MCP 客户端（握手/SSE/会话自愈/推送流）
+  mcp/demo.ts         无密钥、无外网依赖的确定性演示数据源
   mcp/jin10.ts        金十类型化门面（8 工具 + 1 资源）
   mcp/wisburg.ts      智堡类型化门面（11 工具 + markdown 解析器）
-  core/quota.ts       按北京时间自然日的额度账本 + 自适应间隔
+  core/quota.ts       可持久化的北京时间额度账本 + 自适应间隔
   core/scheduler.ts   双通道加权轮询调度器
   core/bus.ts         SSE 扇出中心
   core/cache.ts       TTL 缓存 + 在途请求合并
@@ -220,8 +302,13 @@ server/src/
 web/src/
   components/         Header Sidebar Watchlist Hero Chart FlashFeed
                       NewsPanel CalendarPanel Overview Research CodePicker
-  lib/                api / useStream / format
+  lib/                api / runtime / useStream / format
   styles.css          设计系统（双主题 + 双涨跌配色）
+scripts/
+  probe.mjs           平台无关的运行实例探针
+  start-demo.mjs      Windows/macOS/Linux 通用演示入口
+Dockerfile            Node 22 多阶段、非 root 运行镜像
+compose.yaml          单服务 + 持久化额度卷
 ```
 
 ---

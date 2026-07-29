@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { QuotaSnapshot, ToolQuota } from '../types.js';
 
 /**
@@ -24,12 +26,16 @@ export class QuotaLedger {
   private counts = new Map<string, number>();
   /** 被服务端明确拒绝（今日额度耗尽）的工具，直到次日重置前不再尝试。 */
   private blocked = new Set<string>();
+  private persistenceError: string | null = null;
 
   constructor(
     private readonly limit: number,
     private readonly reserveRatio: number,
     private readonly sustainHours: number,
-  ) {}
+    private readonly stateFile?: string,
+  ) {
+    this.restore();
+  }
 
   private roll(): void {
     const today = beijingDayKey();
@@ -37,6 +43,7 @@ export class QuotaLedger {
       this.day = today;
       this.counts.clear();
       this.blocked.clear();
+      this.persist();
     }
   }
 
@@ -63,6 +70,7 @@ export class QuotaLedger {
   record(tool: string): void {
     this.roll();
     this.counts.set(tool, (this.counts.get(tool) ?? 0) + 1);
+    this.persist();
   }
 
   /** 服务端回了"今日该工具调用次数已达上限"，本地直接封到明天。 */
@@ -70,6 +78,7 @@ export class QuotaLedger {
     this.roll();
     this.blocked.add(tool);
     this.counts.set(tool, this.limit);
+    this.persist();
   }
 
   isBlocked(tool: string): boolean {
@@ -102,4 +111,62 @@ export class QuotaLedger {
     }));
     return { day: this.day, resetInMs: msUntilBeijingMidnight(), tools: list };
   }
+
+  get persistenceStatus(): { enabled: boolean; ok: boolean; error: string | null } {
+    return {
+      enabled: Boolean(this.stateFile),
+      ok: Boolean(this.stateFile) && this.persistenceError === null,
+      error: this.persistenceError,
+    };
+  }
+
+  private restore(): void {
+    if (!this.stateFile) return;
+    try {
+      fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
+      if (!fs.existsSync(this.stateFile)) return;
+      const raw = JSON.parse(fs.readFileSync(this.stateFile, 'utf8')) as Partial<LedgerState>;
+      if (raw.version !== 1 || raw.day !== this.day) return;
+      for (const [tool, count] of Object.entries(raw.counts ?? {})) {
+        if (Number.isFinite(count) && Number(count) >= 0) this.counts.set(tool, Math.trunc(Number(count)));
+      }
+      for (const tool of raw.blocked ?? []) {
+        if (typeof tool === 'string' && tool) this.blocked.add(tool);
+      }
+      this.persistenceError = null;
+    } catch {
+      this.persistenceError = '额度状态读取失败，将在下次写入时重建';
+    }
+  }
+
+  private persist(): void {
+    if (!this.stateFile) return;
+    const temp = `${this.stateFile}.${process.pid}.tmp`;
+    const state: LedgerState = {
+      version: 1,
+      day: this.day,
+      counts: Object.fromEntries(this.counts),
+      blocked: [...this.blocked],
+    };
+    try {
+      fs.mkdirSync(path.dirname(this.stateFile), { recursive: true });
+      fs.writeFileSync(temp, `${JSON.stringify(state)}\n`, { encoding: 'utf8', mode: 0o600 });
+      fs.renameSync(temp, this.stateFile);
+      this.persistenceError = null;
+    } catch {
+      this.persistenceError = '额度状态写入失败，重启后计数可能丢失';
+      try {
+        fs.unlinkSync(temp);
+      } catch {
+        // 临时文件可能尚未创建
+      }
+    }
+  }
+}
+
+interface LedgerState {
+  version: 1;
+  day: string;
+  counts: Record<string, number>;
+  blocked: string[];
 }

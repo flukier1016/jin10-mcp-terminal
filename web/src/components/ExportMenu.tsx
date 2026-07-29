@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { apiUrl } from '../lib/runtime';
 
 interface Props {
   /** 智堡不可用时隐藏"含研究"选项。 */
@@ -56,11 +57,11 @@ export function ExportMenu({ wisburgOn }: Props) {
     if (research && wisburgOn) q.set('research', '1');
     // HTML 走新标签（里面自带打印按钮），其余走下载
     if (format === 'html') {
-      window.open(`/api/report?${q}`, '_blank', 'noopener');
+      window.open(apiUrl(`/report?${q}`), '_blank', 'noopener');
     } else {
       q.set('download', '1');
       const a = document.createElement('a');
-      a.href = `/api/report?${q}`;
+      a.href = apiUrl(`/report?${q}`);
       a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
@@ -71,16 +72,23 @@ export function ExportMenu({ wisburgOn }: Props) {
 
   return (
     <div className="export" ref={boxRef}>
-      <button className={`chip${open ? ' on' : ''}`} onClick={() => setOpen((v) => !v)} title="导出市场日报">
+      <button
+        type="button"
+        className={`chip${open ? ' on' : ''}`}
+        onClick={() => setOpen((v) => !v)}
+        title="导出市场日报"
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
         ⤓ 导出报告
       </button>
 
       {open && (
-        <div className="export-menu" role="menu">
+        <div className="export-menu" role="menu" aria-label="导出市场日报">
           <div className="export-head">市场日报</div>
           {OPTIONS.map((o) => (
-            <button key={o.key} className="export-item" role="menuitem" onClick={() => go(o.key)}>
-              <i>{o.icon}</i>
+            <button type="button" key={o.key} className="export-item" role="menuitem" onClick={() => go(o.key)}>
+              <i aria-hidden="true">{o.icon}</i>
               <span>
                 <b>{o.label}</b>
                 <em>{o.hint}</em>

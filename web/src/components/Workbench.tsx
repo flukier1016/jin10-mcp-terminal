@@ -165,9 +165,12 @@ export function Workbench({ now, onOpenWisburg, onOpenJin10News, onPickCode }: P
             <>
               <div className="wb-group" style={{ paddingBottom: 0 }}>
                 <div className="search" style={{ margin: '2px 0 8px' }}>
-                  <span style={{ color: 'var(--fg-mute)', fontSize: 12 }}>⌕</span>
+                  <span style={{ color: 'var(--fg-mute)', fontSize: 12 }} aria-hidden="true">
+                    ⌕
+                  </span>
                   <input
                     value={kw}
+                    aria-label="筛选或搜索公司"
                     placeholder="筛选公司…"
                     onChange={(e) => setKw(e.target.value)}
                     onKeyDown={(e) => {
@@ -273,6 +276,14 @@ export function Workbench({ now, onOpenWisburg, onOpenJin10News, onPickCode }: P
                 key={`${it.source}-${it.kind}-${it.id}`}
                 className={`tl-item ${it.source}`}
                 onClick={() => open(it)}
+                onKeyDown={(event) => {
+                  if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+                  event.preventDefault();
+                  open(it);
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`打开${it.kindLabel}：${it.title}`}
               >
                 <div className="tl-time">
                   <b>{bjHM(it.time)}</b>
@@ -283,6 +294,7 @@ export function Workbench({ now, onOpenWisburg, onOpenJin10News, onPickCode }: P
                     <span className={`tl-badge ${it.source}`}>{it.kindLabel}</span>
                     {it.companies?.slice(0, 3).map((c) => (
                       <button
+                        type="button"
                         key={c}
                         className="tl-chip"
                         onClick={(e) => {

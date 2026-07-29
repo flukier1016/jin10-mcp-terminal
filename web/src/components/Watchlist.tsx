@@ -15,7 +15,7 @@ function WatchlistInner({ codes, quotes, active, now, onPick, onRemove }: Props)
   const lastAt = Math.max(0, ...[...quotes.values()].map((q) => q.at));
 
   return (
-    <section className="panel" style={{ flex: '0 1 auto' }}>
+    <section className="panel watchlist-panel" style={{ flex: '0 1 auto' }}>
       <div className="panel-head">
         <span className="panel-title">自选行情</span>
         <span className="panel-sub">{lastAt ? ago(lastAt, now) : '等待数据'}</span>
@@ -32,6 +32,15 @@ function WatchlistInner({ codes, quotes, active, now, onPick, onRemove }: Props)
               {...(tick ? { 'data-seq': tick.seq } : {})}
               className={`wl-row${code === active ? ' on' : ''}${tick && tick.dir !== 'flat' ? ` tick-${tick.dir}` : ''}`}
               onClick={() => onPick(code)}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+                event.preventDefault();
+                onPick(code);
+              }}
+              role="button"
+              tabIndex={0}
+              aria-pressed={code === active}
+              aria-label={`${tick?.quote.name ?? code} ${tick ? `${fmtPrice(tick.quote.close)} ${fmtPct(tick.quote.ups_percent)}` : '等待数据'}`}
             >
               <div>
                 <div className="wl-name">{tick?.quote.name ?? code}</div>
@@ -42,8 +51,10 @@ function WatchlistInner({ codes, quotes, active, now, onPick, onRemove }: Props)
                 <div className={`wl-chg ${s}`}>{tick ? fmtPct(tick.quote.ups_percent) : ''}</div>
               </div>
               <button
+                type="button"
                 className="wl-del"
                 title="移除"
+                aria-label={`从自选移除 ${tick?.quote.name ?? code}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove(code);

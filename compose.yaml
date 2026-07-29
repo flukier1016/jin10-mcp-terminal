@@ -1,0 +1,35 @@
+services:
+  terminal:
+    build:
+      context: .
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      STATE_DIR: /app/data
+      DEMO_MODE: "${DEMO_MODE:-false}"
+      JIN10_MCP_URL: "${JIN10_MCP_URL:-https://mcp.jin10.com/mcp}"
+      JIN10_TOKEN: "${JIN10_TOKEN:-}"
+      WISBURG_MCP_URL: "${WISBURG_MCP_URL:-https://mcp.wisburg.com/mcp}"
+      WISBURG_TOKEN: "${WISBURG_TOKEN:-}"
+      WISBURG_DAILY_LIMIT: "${WISBURG_DAILY_LIMIT:-1000}"
+      MCP_PROTOCOL_VERSION: "${MCP_PROTOCOL_VERSION:-2025-11-25}"
+      CORS_ORIGIN: "${CORS_ORIGIN:-}"
+      DAILY_TOOL_LIMIT: "${DAILY_TOOL_LIMIT:-1500}"
+      QUOTA_RESERVE_RATIO: "${QUOTA_RESERVE_RATIO:-0.1}"
+      SUSTAIN_HOURS: "${SUSTAIN_HOURS:-24}"
+      POLL_WHEN_IDLE: "${POLL_WHEN_IDLE:-true}"
+      ALWAYS_ON_UNIVERSE: "${ALWAYS_ON_UNIVERSE:-true}"
+      FOCUS_BOOST: "${FOCUS_BOOST:-6}"
+      DEFAULT_WATCHLIST: "${DEFAULT_WATCHLIST:-XAUUSD,XAGUSD,USOIL,UKOIL,USDCNH,USDJPY,EURUSD,COPPER}"
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 10s
+    volumes:
+      - terminal-data:/app/data
+
+volumes:
+  terminal-data:

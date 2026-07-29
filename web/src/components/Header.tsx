@@ -22,6 +22,7 @@ interface Props {
   /** 只有终端页需要"添加品种"。 */
   showCodes: boolean;
   wisburgOn: boolean;
+  demo: boolean;
 }
 
 /** 顶栏：连接状态 + 额度水位 + 北京时间。额度直接摆出来，刷新节奏才是可信的。 */
@@ -36,8 +37,16 @@ function HeaderInner({
   onOpenCodes,
   showCodes,
   wisburgOn,
+  demo,
 }: Props) {
   const polled = (quota?.tools ?? []).filter((t) => TOOL_LABEL[t.tool]);
+  const statusLabel = demo
+    ? 'DEMO'
+    : conn === 'live'
+      ? 'LIVE'
+      : conn === 'connecting'
+        ? 'CONNECTING'
+        : 'RECONNECTING';
 
   return (
     <header className="header">
@@ -49,13 +58,22 @@ function HeaderInner({
         </div>
       </div>
 
-      <div className={`live ${conn === 'live' ? '' : conn === 'connecting' ? 'wait' : 'off'}`}>
-        <i className="dot" />
-        {conn === 'live' ? 'LIVE' : conn === 'connecting' ? 'CONNECTING' : 'RECONNECTING'}
+      <div
+        className={`live${demo ? ' demo' : conn === 'live' ? '' : conn === 'connecting' ? ' wait' : ' off'}`}
+        role="status"
+        aria-live="polite"
+        title={demo ? '本地演示数据，不连接真实数据源' : '实时数据连接状态'}
+      >
+        <i className="dot" aria-hidden="true" />
+        {statusLabel}
       </div>
 
       {polled.length > 0 && (
-        <div className="quota" title="金十限制每个工具每天 1500 次调用，按北京时间自然日重置">
+        <div
+          className="quota"
+          title={demo ? '演示模式额度仅用于验证界面' : '金十限制每个工具每天 1500 次调用，按北京时间自然日重置'}
+          aria-label="数据工具额度"
+        >
           {polled.map((t) => {
             const pct = Math.max(0, Math.min(100, (t.remaining / t.limit) * 100));
             return (
@@ -89,23 +107,33 @@ function HeaderInner({
 
       <div className="spacer" />
 
-      {showCodes && (
-        <button className="chip" onClick={onOpenCodes}>
-          ＋ 添加品种
+      <div className="header-actions" aria-label="终端操作">
+        {showCodes && (
+          <button type="button" className="chip" onClick={onOpenCodes}>
+            ＋ 添加品种
+          </button>
+        )}
+        <ExportMenu wisburgOn={wisburgOn} />
+        <button
+          type="button"
+          className={`chip${scheme === 'cn' ? ' on' : ''}`}
+          onClick={onScheme}
+          title="切换涨跌配色"
+          aria-pressed={scheme === 'cn'}
+        >
+          {scheme === 'cn' ? '红涨绿跌' : '绿涨红跌'}
         </button>
-      )}
-      <ExportMenu wisburgOn={wisburgOn} />
-      <button className={`chip${scheme === 'cn' ? ' on' : ''}`} onClick={onScheme} title="切换涨跌配色">
-        {scheme === 'cn' ? '红涨绿跌' : '绿涨红跌'}
-      </button>
-      <button
-        className="chip theme-btn"
-        onClick={onTheme}
-        title={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
-        aria-label={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
-      >
-        {theme === 'dark' ? '☾ 夜间' : '☀ 日间'}
-      </button>
+        <button
+          type="button"
+          className="chip theme-btn"
+          onClick={onTheme}
+          title={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
+          aria-label={theme === 'dark' ? '切换到日间模式' : '切换到夜间模式'}
+          aria-pressed={theme === 'light'}
+        >
+          {theme === 'dark' ? '☾ 夜间' : '☀ 日间'}
+        </button>
+      </div>
 
       <div className="clock">
         <b>{bjTime(now)}</b>
