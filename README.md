@@ -1,6 +1,6 @@
 # 金十实时终端 · JIN10 MCP TERMINAL
 
-通过**标准 MCP 协议**接入 [金十数据](https://mcp.jin10.com) 与 [智堡 Wisburg](https://mcp.wisburg.com) 的实时财经终端。
+通过**标准 MCP 协议**接入 [金十数据](https://mcp.jin10.com) 的实时财经终端，并可挂载历史智堡研究 SQLite Matrix。智堡实时连接现在采用 fail-closed：默认硬关闭，即使环境里残留旧 token 也不会发起请求。
 
 一个 Node 进程同时承担 MCP 客户端、额度调度器、SSE 广播器与前端静态托管，可直接运行在 macOS、Linux、Windows、Docker 或 Railway；也支持前后端分离部署。
 
@@ -20,6 +20,25 @@ npm run demo
 ```bash
 npm run probe
 ```
+
+## 智堡缓存专用模式
+
+权限暂停或到期时保持下面四项即可：
+
+```bash
+WISBURG_LIVE_ENABLED=false
+WISBURG_MATRIX_AUTO_SYNC=false
+MATRIX_READ_ONLY=true
+MATRIX_PUBLIC_CONTENT=false
+STATE_DIR=/tmp/jin10-state
+MATRIX_DB_PATH=/app/data/wisburg-matrix.sqlite
+```
+
+- `/api/research/*` 返回 `410 Gone`，主题页与报告导出不会再调用智堡。
+- `/api/matrix/*` 继续只读查询现有 SQLite，不产生任何智堡请求。
+- `npm run matrix:sync` 同样受实时连接开关保护；`matrix:stats` 与 `matrix:reindex` 仍是纯本地操作。
+- 缓存库不进入 Git 或镜像。Railway 必须先挂载持久卷，再单独上传数据库文件。
+- 对外提供缓存前，应重新确认原账户条款是否允许在权限结束后继续保存、加工或展示；默认不要公开原始全文。
 
 ---
 
@@ -74,18 +93,45 @@ npm run probe
 - 覆盖度面板：实时显示当前刷新间隔、整轮周期、日调用预算
 
 ### 主题工作台
-两个数据源真正合到一起的地方 —— 左侧按**品种/主题**或**公司**分面，右侧是**智堡研究 + 金十盘面**合并后的同一条时间线。
+左侧按**品种/主题**或**公司**分面，右侧展示金十盘面；仅当账户权限恢复并显式开启智堡实时连接时，才合并智堡研究时间线。
 
 - **品种 / 主题**：24 个宏观交易主题，分五组（大宗商品 / 外汇 / 利率与央行 / 股票市场 / 宏观主题）。主题若对应可交易品种（黄金→XAUUSD、日元→USDJPY、A股→000001…），顶部直接给出实时报价，点一下跳到终端页看 K 线。
-- **公司**：从最近 100 份企业研究与电话会纪要的标题里动态抽取公司名并按频次排序。抽取用「词典命中 + 电话会格式 + 冒号前缀」三路并用，因为公司名在标题里位置很随意（`Alphabet云加速但…`、`英伟达与AMD的…`、`下调滔搏和宝胜…`）；长短写法（`Stifel` / `Stifel Financial`）自动合并。
-- **视角切换**：全部 / 研究观点 / 盘面消息，各带条数。时间线里每条都标了来源，智堡紫、金十金；研报标题里识别出的公司做成可点标签，一键切到该公司视角。
+- **公司**：实时连接开启时，从最近 100 份企业研究与电话会纪要的标题里动态抽取公司名并按频次排序；缓存模式下仍可手动输入公司名搜索金十消息。
+- **视角切换**：缓存模式提供全部 / 盘面消息；实时连接恢复后才启用研究观点，并按来源区分智堡紫、金十金。
 
-单个主题一次请求 = 智堡 3 次 + 金十 2 次并发搜索，5 分钟缓存。各工具都是独立的 1500/天，随便翻。
+缓存专用模式下单个主题只请求金十；智堡实时连接开启时才额外并发 3 路智堡搜索，并使用 5 分钟缓存。
 
-### 研究页（智堡全量）
+### 研究页（智堡实时连接恢复后可用）
 - 资讯流 / 市场日报 / 投行研报 / 企业研究 / 资管报告 / 公开文献 / 电话会纪要 / 深度文章 / 数据图表
 - 全文搜索 + 游标翻页
 - Markdown 正文渲染
+
+### 研究结论 Matrix（本地长期库）
+
+Matrix 把智堡的易失在线内容沉淀为可迁移的 SQLite 研究库，不再依赖每次打开页面都实时请求：
+
+- 9 路列表并发扫库，单页 100 条；按 `source + id` 去重，逐页写入游标检查点
+- 报告与文章正文分批补齐；进程中断、机器重启或重新部署后可继续，不重复拉已完成详情
+- 从原文的「结论 / 核心观点 / 投资要点 / Summary」等段落抽取可追溯结论，不调用模型补写事实
+- 自动生成主题、公司、观点、期限、地区、来源分组标签，并提供「主题 × 观点」二维矩阵
+- FTS5 trigram 全文索引可直接检索中文；网页端支持搜索、分面筛选和结论卡片
+- 实测智堡列表游标最多返回 10,000 条；触达分页上限会落盘标记。任一入口返回 429 后，账户级熔断状态会持久化到北京时间次日，避免重启后继续空打
+
+```bash
+# 查看库规模与各来源检查点；重跑本地结论和标签抽取，不访问智堡
+npm run matrix:stats
+npm run matrix:reindex
+
+# 仅在权限恢复后：同时设置 WISBURG_LIVE_ENABLED=true 和有效 token，才允许同步
+WISBURG_LIVE_ENABLED=true npm run matrix:sync
+
+# 权限恢复后精确控制本轮来源与预算
+WISBURG_LIVE_ENABLED=true npm run matrix:sync -- \
+  --sources=report:company,report:ib,article,report-detail,article-detail \
+  --detail-calls=480 --report-details=240 --article-details=240 --concurrency=4
+```
+
+数据库默认位于 `STATE_DIR/wisburg-matrix.sqlite`，`.data/` 已排除出 Git。迁移时复制 SQLite 文件即可；额度账本只有恢复在线同步时才需要。公网 API 默认只返回元数据、标签和结论；原始全文保持 `MATRIX_PUBLIC_CONTENT=false`，仅在账户条款明确允许时再考虑受控读取。不要把数据库提交到公开仓库。
 
 ### 一键导出报告
 顶栏「⤓ 导出报告」，服务端用内存快照生成完整市场日报 —— **导出本身不消耗任何金十额度**，可以随便点。
@@ -96,7 +142,7 @@ npm run probe
 | **Markdown** | 下载 `.md`，可粘进微信 / 邮件 / 笔记 |
 | **JSON** | 下载结构化数据，便于二次处理 |
 
-报告内容：市场概况（涨跌分布 + 按地区/按品种汇总 + 领涨领跌）、全品种行情明细（按地区分组，含今开/最高/最低/更新时延）、今日财经日历（已公布带前值预期实际与利多利空 / 待公布）、重要快讯、深度资讯。勾选「含智堡研究」会额外打 2 次智堡调用，附上市场日报与投研资讯流。
+报告内容：市场概况（涨跌分布 + 按地区/按品种汇总 + 领涨领跌）、全品种行情明细（按地区分组，含今开/最高/最低/更新时延）、今日财经日历（已公布带前值预期实际与利多利空 / 待公布）、重要快讯、深度资讯。只有智堡实时连接显式开启时，「含智堡研究」才会额外调用智堡；缓存专用模式下不会调用。
 
 ```bash
 curl "http://localhost:8080/api/report?format=md&flash=40&news=10&star=3&research=1"
@@ -158,7 +204,7 @@ initialize → notifications/initialized → tools/list / resources/list → too
 ```bash
 npm ci
 cp .env.example .env      # Windows PowerShell：Copy-Item .env.example .env
-# 编辑 .env：填写 JIN10_TOKEN；WISBURG_TOKEN 可选
+# 编辑 .env：填写 JIN10_TOKEN；保持 WISBURG_LIVE_ENABLED=false
 npm run dev               # server :8080 + Vite :5173
 ```
 
@@ -172,7 +218,7 @@ npm run build && npm start   # → http://localhost:8080
 
 ```bash
 npm run verify            # 类型检查 + 生产构建 + 内置测试
-npm run probe             # 对正在运行的实例检查 Web / health / universe / config
+npm run probe             # 对运行实例检查 Web / health / universe / config / Matrix
 ```
 
 GitHub Actions 会在 Ubuntu（Node 20/22）与 Windows（Node 22）上重复执行 `npm run verify`，防止平台差异回归。
@@ -210,24 +256,34 @@ docker compose up --build -d
 BASE_URL=http://localhost:8080 npm run probe
 ```
 
-Compose 会把 `terminal-data` 卷挂载到 `/app/data`。迁移机器时应同时迁移该卷，否则当天额度计数会从零开始。
+Compose 会把 `terminal-data` 卷挂载到 `/app/data`。迁移机器时应同时迁移该卷，否则 Matrix 数据和当天额度计数都会丢失。
 
 ### Railway
 
 仓库已包含 `railway.json` 与 `nixpacks.toml`，单服务即可。
 
 ```bash
-railway link          # 关联项目
-railway up            # 部署
+railway link                                        # 关联项目
+railway volume add --mount-path /app/data --json    # 首次部署缓存库时先建卷
+railway volume files upload .data/wisburg-matrix.sqlite /wisburg-matrix.sqlite --json
+railway up                                          # 数据到位后再部署
 ```
+
+`volume files upload` 的远端路径以卷根目录 `/` 计算；应用通过挂载点 `/app/data/wisburg-matrix.sqlite` 读取。上传前先确认本地 SQLite `PRAGMA quick_check` 返回 `ok`。数据库已被 `.gitignore` 与 `.dockerignore` 排除，普通 `git push`、GitHub 构建或 `railway up` 都不会替你迁移它。
 
 在 Railway 的 **Variables** 面板配置（**不要**提交 `.env`）：
 
 | 变量 | 必需 | 说明 |
 |---|:--:|---|
 | `JIN10_TOKEN` | ✅ | 金十 MCP Bearer Token |
-| `WISBURG_TOKEN` | | 智堡 API Key，留空则关闭研究模块 |
-| `STATE_DIR` | | 额度状态目录；挂载 Railway Volume 时填卷内路径 |
+| `WISBURG_LIVE_ENABLED` | ✅ | 缓存专用部署固定为 `false`；旧 token 单独存在也不会连接 |
+| `WISBURG_TOKEN` | | 缓存专用部署不需要；权限恢复前建议从平台删除 |
+| `STATE_DIR` | ✅ | 缓存专用部署填 `/tmp/jin10-state`；避免额度账本写入只读卷 |
+| `MATRIX_DB_PATH` | ✅ | 填 `/app/data/wisburg-matrix.sqlite` |
+| `MATRIX_READ_ONLY` | ✅ | 缓存专用部署固定为 `true`；卷上源库不写，运行时使用临时只读副本 |
+| `WISBURG_MATRIX_AUTO_SYNC` | ✅ | 缓存专用部署固定为 `false` |
+| `MATRIX_PUBLIC_CONTENT` | | 默认 `false`，公网不返回缓存全文 |
+| `MATRIX_ADMIN_TOKEN` | | Bearer Token；不公开全文时用于受控读取 |
 | `HOST` | | 默认 `0.0.0.0` |
 | `SUSTAIN_HOURS` | | 默认 `24`（额度铺满 24 小时 = 64 秒/次） |
 | `POLL_WHEN_IDLE` | | 默认 `true`（无人访问也持续刷新） |
@@ -238,7 +294,7 @@ railway up            # 部署
 
 健康检查：`GET /api/health`
 
-> Railway 要真正 24/7 常驻，需要使用不会休眠的计划。若需跨部署保留当天额度计数，请挂载 Volume 并把 `STATE_DIR` 指向该卷；保持单副本运行。
+> Railway 要真正 24/7 常驻，需要使用不会休眠的计划。Matrix 必须挂载 Volume、把 `MATRIX_DB_PATH` 指向 `/app/data/wisburg-matrix.sqlite`、开启 `MATRIX_READ_ONLY=true` 并保持单副本运行。服务启动时会把卷上源库复制到容器临时目录，解决只读 Volume 上 WAL/SHM 辅助文件的权限问题；所有 API 查询都锁定为只读，重启后重新从卷加载。未挂卷时启动会失败，避免把空库健康检查误判为数据已经上线。
 
 ### 前后端分离
 
@@ -264,7 +320,7 @@ CORS_ORIGIN=https://terminal.example.com npm start
 |---|---|---|
 | GET | `/api/stream?codes=A,B&focus=A` | **SSE 实时通道**，事件：`hello` `quote` `kline` `flash` `news` `calendar` `quota` `status` `ping` |
 | GET | `/api/health` | 健康检查 |
-| GET | `/api/report?format=html\|md\|json` | **导出市场日报**。参数：`research=1` 含智堡、`flash=` 快讯条数、`news=` 资讯条数、`star=` 日历最低星级、`download=1` 强制下载。不消耗金十额度 |
+| GET | `/api/report?format=html\|md\|json` | **导出市场日报**。缓存模式忽略 `research=1`，不会调用智堡；其余参数：`flash=`、`news=`、`star=`、`download=1` |
 | GET | `/api/universe` | 品种分类元数据 + 覆盖度 |
 | POST | `/api/scope` | 切换覆盖范围 `{"scope":"core"\|"full"}` |
 | GET | `/api/quota` | 额度快照 |
@@ -275,11 +331,12 @@ CORS_ORIGIN=https://terminal.example.com npm start
 | GET | `/api/news?cursor=` · `/api/news/search?keyword=` · `/api/news/:id` | 资讯 |
 | GET | `/api/calendar` | 财经日历 |
 | GET | `/api/topics` | 主题分面定义（24 个主题 + 分组） |
-| GET | `/api/topic/:key` | **主题合并时间线**：智堡 3 路 + 金十 2 路并发搜索合并，附实时报价。`?q=` 可搜任意关键词 |
-| GET | `/api/companies` | 公司分面（从近 100 份企业研究/电话会标题抽取并排序） |
-| GET | `/api/research/feed\|daily\|articles\|images` | 智堡列表 |
-| GET | `/api/research/reports/:category` | 智堡研报（`ib` `company` `am` `archive` `ec`） |
-| GET | `/api/research/report/:category/:id` · `/api/research/article/:id` | 智堡详情 |
+| GET | `/api/topic/:key` | 主题时间线 + 实时报价；缓存模式仅搜索金十，`?q=` 可搜任意关键词 |
+| GET | `/api/companies` | 仅实时连接开启时生成智堡公司分面；关闭时返回空分面 |
+| GET | `/api/research/*` | 缓存模式固定返回 `410 Gone`，不连接智堡 |
+| GET | `/api/matrix/stats` · `/api/matrix/facets` · `/api/matrix/grid` | Matrix 规模、分面与二维聚合 |
+| GET | `/api/matrix/search?q=&topic=&company=&stance=` | 本地全文搜索与多维筛选，不消耗智堡额度 |
+| GET | `/api/matrix/document/:docKey` | 单条研究；`?content=1` 读取全文时受 Matrix 权限保护 |
 
 错误映射：工具业务错误 → `502`，触发限流 → `429`，协议错误 → `502`。
 
@@ -298,10 +355,12 @@ server/src/
   core/bus.ts         SSE 扇出中心
   core/cache.ts       TTL 缓存 + 在途请求合并
   core/universe.ts    33 品种宇宙的地区/资产分类
+  matrix/             SQLite 存储、结论/标签抽取、断点同步与命令行
   routes/             REST + SSE 路由
 web/src/
   components/         Header Sidebar Watchlist Hero Chart FlashFeed
-                      NewsPanel CalendarPanel Overview Research CodePicker
+                      NewsPanel CalendarPanel Overview Research ResearchMatrix
+                      CodePicker
   lib/                api / runtime / useStream / format
   styles.css          设计系统（双主题 + 双涨跌配色）
 scripts/
@@ -315,4 +374,4 @@ compose.yaml          单服务 + 持久化额度卷
 
 ## 技术栈
 
-Node 20+ · TypeScript · Express 5 · React 19 · Vite 6 · lightweight-charts 5 · 零 UI 框架（手写 CSS 设计系统）
+Node 20+ · TypeScript · Express 5 · React 19 · Vite 6 · better-sqlite3 / FTS5 · lightweight-charts 5 · 零 UI 框架（手写 CSS 设计系统）

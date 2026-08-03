@@ -1,6 +1,7 @@
 .git
 .github
 .claude
+.data
 .env
 .env.*
 !.env.example

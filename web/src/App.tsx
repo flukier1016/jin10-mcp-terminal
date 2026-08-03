@@ -12,6 +12,7 @@ import { ArticleModal } from './components/ArticleModal';
 import { Overview } from './components/Overview';
 import { Research, ResearchModal } from './components/Research';
 import { Workbench } from './components/Workbench';
+import { ResearchMatrix } from './components/ResearchMatrix';
 import { useNow, useStream } from './lib/useStream';
 import { api, type UniverseMeta } from './lib/api';
 import type { KlineBar } from './types';
@@ -240,6 +241,12 @@ export default function App() {
         {view === 'research' && (
           <div className="page">
             <Research onOpen={setResTarget} />
+          </div>
+        )}
+
+        {view === 'matrix' && (
+          <div className="page">
+            <ResearchMatrix />
           </div>
         )}
       </div>

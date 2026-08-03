@@ -34,6 +34,14 @@ const checks = [
       return data?.ok === true && Array.isArray(data?.data?.watchlist);
     },
   },
+  {
+    name: 'matrix',
+    path: '/api/matrix/stats',
+    validate: (_response, body) => {
+      const data = JSON.parse(body);
+      return data?.ok === true && Number.isFinite(Number(data?.data?.documents));
+    },
+  },
 ];
 
 let lastError;

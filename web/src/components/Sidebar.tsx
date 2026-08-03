@@ -1,4 +1,4 @@
-export type View = 'terminal' | 'overview' | 'workbench' | 'research';
+export type View = 'terminal' | 'overview' | 'workbench' | 'matrix' | 'research';
 
 interface Props {
   view: View;
@@ -9,8 +9,9 @@ interface Props {
 const ITEMS: Array<{ key: View; label: string; icon: string; hint: string }> = [
   { key: 'terminal', label: '终端', icon: '◧', hint: '实时行情 · K线 · 7×24快讯' },
   { key: 'overview', label: '总览', icon: '▦', hint: '按地区/品种汇总热力图' },
-  { key: 'workbench', label: '主题', icon: '⊞', hint: '按品种/公司聚合：智堡研究 + 金十盘面同一条时间线' },
-  { key: 'research', label: '研究', icon: '◈', hint: '智堡全部内容：研报 / 日报 / 文章 / 图表' },
+  { key: 'workbench', label: '主题', icon: '⊞', hint: '按品种/公司聚合；实时研究关闭时保留金十盘面' },
+  { key: 'matrix', label: '矩阵', icon: '▩', hint: '历史缓存的只读研报结论数据库' },
+  { key: 'research', label: '研究', icon: '◈', hint: '智堡实时连接已关闭' },
 ];
 
 export function Sidebar({ view, onView, wisburgOn }: Props) {
@@ -26,7 +27,7 @@ export function Sidebar({ view, onView, wisburgOn }: Props) {
             className={`rail-btn${view === it.key ? ' on' : ''}`}
             onClick={() => !disabled && onView(it.key)}
             disabled={disabled}
-            title={disabled ? '未配置 WISBURG_TOKEN' : it.hint}
+            title={disabled ? '智堡实时连接已关闭；历史缓存请使用矩阵' : it.hint}
             aria-current={view === it.key ? 'page' : undefined}
           >
             <i aria-hidden="true">{it.icon}</i>

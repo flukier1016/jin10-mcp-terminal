@@ -2049,6 +2049,500 @@ a {
   margin-bottom: 5px;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   智堡研究 Matrix
+   ══════════════════════════════════════════════════════════════ */
+
+.matrix-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(1380px, 100%);
+  margin: 0 auto;
+}
+
+.matrix-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 28px;
+  padding: 22px 24px;
+  overflow: visible;
+  background:
+    linear-gradient(115deg, color-mix(in srgb, var(--violet) 12%, transparent), transparent 48%),
+    var(--panel);
+}
+
+.matrix-kicker {
+  color: var(--violet);
+  font: 600 10px/1 var(--mono);
+  letter-spacing: 0.16em;
+}
+
+.matrix-hero h1 {
+  margin: 7px 0 4px;
+  font-size: clamp(22px, 2.5vw, 34px);
+  line-height: 1.18;
+  letter-spacing: -0.035em;
+}
+
+.matrix-hero p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--fg-dim);
+  font-size: 12.5px;
+}
+
+.matrix-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(88px, 1fr));
+  align-items: stretch;
+  gap: 1px;
+  min-width: 390px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.matrix-metrics > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 72px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--panel-solid) 92%, transparent);
+}
+
+.matrix-metrics span {
+  color: var(--fg-mute);
+  font-size: 10px;
+}
+
+.matrix-metrics b {
+  margin-top: 4px;
+  font-size: 19px;
+}
+
+.matrix-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.65fr);
+  gap: 12px;
+}
+
+.matrix-grid-panel,
+.matrix-sync,
+.matrix-filter {
+  max-height: none;
+}
+
+.matrix-grid-wrap {
+  padding: 12px 14px 15px;
+  overflow-x: auto;
+}
+
+.matrix-grid {
+  display: grid;
+  gap: 4px;
+  min-width: 520px;
+}
+
+.matrix-grid > b,
+.matrix-grid > strong {
+  display: flex;
+  align-items: center;
+  min-height: 31px;
+  color: var(--fg-mute);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.matrix-grid > b {
+  justify-content: center;
+}
+
+.matrix-grid > strong {
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+
+.matrix-cell {
+  min-height: 31px;
+  border: 1px solid color-mix(in srgb, var(--violet) 20%, var(--line));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--violet) var(--matrix-alpha), transparent);
+  color: var(--fg);
+  font: 600 11px/1 var(--mono);
+  transition:
+    transform 0.14s,
+    border-color 0.14s;
+}
+
+.matrix-cell:hover,
+.matrix-cell.on {
+  border-color: var(--violet);
+  transform: translateY(-1px);
+}
+
+.matrix-cell.on {
+  box-shadow: 0 0 0 1px var(--violet);
+}
+
+.matrix-sync {
+  padding-bottom: 12px;
+}
+
+.sync-dot {
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: var(--flat);
+}
+
+.sync-dot.active {
+  background: var(--down);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--down) 16%, transparent);
+}
+
+.matrix-range {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 12px;
+  padding: 12px 14px 8px;
+}
+
+.matrix-range span {
+  color: var(--fg-mute);
+  font-size: 10px;
+}
+
+.matrix-range b {
+  overflow: hidden;
+  color: var(--fg-dim);
+  font: 500 10.5px/1.5 var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matrix-sources {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 6px 12px;
+}
+
+.matrix-sources > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--inset);
+}
+
+.matrix-sources span {
+  overflow: hidden;
+  color: var(--fg-mute);
+  font: 9px/1.3 var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matrix-sources b {
+  margin: 3px 0;
+  font: 650 13px/1.2 var(--mono);
+}
+
+.matrix-sources em {
+  overflow: hidden;
+  color: var(--fg-mute);
+  font-size: 8.5px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.matrix-filter {
+  gap: 0;
+  padding: 12px 14px;
+  overflow: visible;
+}
+
+.matrix-search {
+  width: 100%;
+  min-height: 42px;
+  padding-inline: 12px;
+}
+
+.matrix-search input {
+  font-size: 13px;
+}
+
+.matrix-submit {
+  flex: 0 0 auto;
+  min-height: 29px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--violet) 48%, transparent);
+  border-radius: 7px;
+  background: var(--violet-dim);
+  color: var(--violet);
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.matrix-submit:hover {
+  border-color: var(--violet);
+  background: color-mix(in srgb, var(--violet) 20%, transparent);
+}
+
+.matrix-chips {
+  display: flex;
+  gap: 6px;
+  padding-top: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.matrix-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.matrix-chips button,
+.matrix-tags button {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--fg-dim);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.matrix-chips button:hover,
+.matrix-chips button.on,
+.matrix-tags button:hover {
+  border-color: color-mix(in srgb, var(--violet) 60%, transparent);
+  background: var(--violet-dim);
+  color: var(--violet);
+}
+
+.matrix-chips.compact {
+  padding-top: 7px;
+}
+
+.matrix-chips.compact button {
+  padding-block: 3px;
+  font-size: 9.5px;
+}
+
+.matrix-result-head {
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+}
+
+.matrix-result-head b {
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+
+.matrix-result-head button {
+  margin-left: auto;
+  color: var(--violet);
+  font-size: 10.5px;
+}
+
+.matrix-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.matrix-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 226px;
+  padding: 15px 16px;
+  overflow: visible;
+  transition:
+    border-color 0.15s,
+    transform 0.15s;
+}
+
+.matrix-card:hover {
+  border-color: color-mix(in srgb, var(--violet) 45%, transparent);
+  transform: translateY(-1px);
+}
+
+.matrix-card-open {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.matrix-card-open:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--violet);
+  outline-offset: 5px;
+}
+
+.matrix-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-mute);
+  font: 9.5px/1.2 var(--mono);
+}
+
+.matrix-card-meta span {
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: var(--violet-dim);
+  color: var(--violet);
+}
+
+.matrix-card-meta em {
+  margin-left: auto;
+  font-style: normal;
+}
+
+.matrix-card-open h2 {
+  margin: 11px 0 8px;
+  font-size: 15.5px;
+  line-height: 1.42;
+}
+
+.matrix-card-open > p {
+  display: -webkit-box;
+  min-height: 72px;
+  margin: 0 0 12px;
+  overflow: hidden;
+  color: var(--body-fg);
+  font-size: 12px;
+  line-height: 1.68;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.matrix-card-action {
+  margin-top: auto;
+  padding-bottom: 10px;
+  color: var(--violet);
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.matrix-card-open:hover .matrix-card-action {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.matrix-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: auto;
+}
+
+.matrix-tags button {
+  padding: 3px 7px;
+  font-size: 9.5px;
+}
+
+.matrix-skeleton {
+  min-height: 226px;
+  border-radius: var(--radius);
+}
+
+.matrix-detail-modal {
+  width: min(720px, 100%);
+}
+
+.matrix-detail-state {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--fg-mute);
+  font-size: 9.5px;
+}
+
+.matrix-detail-state.complete {
+  border-color: color-mix(in srgb, var(--violet) 40%, var(--line));
+  background: var(--violet-dim);
+  color: var(--violet);
+}
+
+.matrix-detail-body h2 {
+  margin: 0 0 8px;
+  font-size: clamp(19px, 3vw, 26px);
+  line-height: 1.35;
+}
+
+.matrix-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 18px;
+}
+
+.matrix-detail-section {
+  margin-top: 14px;
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--inset);
+}
+
+.matrix-detail-section h3 {
+  margin: 0 0 7px;
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+
+.matrix-detail-section p {
+  margin: 0;
+  color: var(--body-fg);
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.matrix-detail-note {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--violet);
+  background: var(--violet-dim);
+  color: var(--fg-dim);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.matrix-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 14px;
+}
+
+.matrix-detail-tags span {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--fg-dim);
+  font-size: 10px;
+}
+
+.matrix-detail-loading {
+  display: grid;
+  gap: 11px;
+}
+
 /* ── 响应式 ─────────────────────────────────────────────────── */
 
 @media (max-width: 1280px) {
@@ -2140,6 +2634,18 @@ a {
     order: 10;
     width: 100%;
     justify-content: space-between;
+  }
+  .matrix-hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .matrix-metrics {
+    min-width: 0;
+  }
+  .matrix-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .matrix-page .panel {
+    max-height: none;
   }
 }
 
@@ -2423,6 +2929,37 @@ a {
   }
   .modal-body {
     padding: 14px;
+  }
+  .matrix-hero {
+    gap: 16px;
+    padding: 17px 15px;
+  }
+  .matrix-hero p {
+    font-size: 11.5px;
+  }
+  .matrix-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .matrix-metrics > div {
+    min-height: 62px;
+  }
+  .matrix-sources {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .matrix-filter {
+    padding-inline: 10px;
+  }
+  .matrix-results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .matrix-card {
+    min-height: 0;
+    padding: 14px;
+  }
+  .matrix-card-meta time {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

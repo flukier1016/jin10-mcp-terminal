@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { parseBoolean, parseNumber, parseOrigins } from '../dist/config.js';
+import { parseBoolean, parseNumber, parseOrigins, shouldConnectWisburg } from '../dist/config.js';
 import { QuotaLedger, beijingDayKey, msUntilBeijingMidnight } from '../dist/core/quota.js';
 import { DemoJin10Client } from '../dist/mcp/demo.js';
 
@@ -18,6 +18,13 @@ test('环境变量解析在不同平台保持稳定', () => {
     'https://a.example',
     'https://b.example',
   ]);
+});
+
+test('智堡实时连接默认拒绝旧 token，必须显式开启', () => {
+  assert.equal(shouldConnectWisburg({ demoMode: false, liveEnabled: false, token: 'stale-token' }), false);
+  assert.equal(shouldConnectWisburg({ demoMode: false, liveEnabled: true, token: '' }), false);
+  assert.equal(shouldConnectWisburg({ demoMode: true, liveEnabled: true, token: 'valid-token' }), false);
+  assert.equal(shouldConnectWisburg({ demoMode: false, liveEnabled: true, token: 'valid-token' }), true);
 });
 
 test('北京时间日界线不依赖服务器本地时区', () => {

@@ -189,3 +189,94 @@ export const research = {
     get<WisburgDetail>(`/research/report/${category}/${encodeURIComponent(id)}`, signal),
   article: (id: string, signal?: AbortSignal) => get<WisburgDetail>(`/research/article/${encodeURIComponent(id)}`, signal),
 };
+
+// ── 智堡本地研究 Matrix ────────────────────────────────────────
+
+export interface MatrixTag {
+  dimension: string;
+  value: string;
+  score: number;
+}
+
+export interface MatrixDocument {
+  docKey: string;
+  kind: string;
+  category: string;
+  externalId: string;
+  title: string;
+  publishedAt: string;
+  summary: string;
+  conclusion: string;
+  image: string;
+  url: string;
+  detailStatus: string;
+  charCount: number;
+  fetchedAt: number;
+  updatedAt: number;
+  fields?: Record<string, string>;
+  tags: MatrixTag[];
+}
+
+export interface MatrixStats {
+  documents: number;
+  complete: number;
+  characters: number;
+  oldest: string | null;
+  newest: string | null;
+  databaseBytes: number;
+  byKind: Array<{ key: string; count: number }>;
+  byCategory: Array<{ key: string; count: number }>;
+  sync: Array<{
+    source: string;
+    cursor: string | null;
+    completed: number;
+    pages: number;
+    items: number;
+    calls: number;
+    lastSyncedAt: number;
+    lastError: string | null;
+  }>;
+  lastRun: {
+    id: number;
+    startedAt: number;
+    finishedAt: number | null;
+    status: string;
+    resultJson: string;
+    error: string | null;
+  } | null;
+}
+
+export interface MatrixFacet {
+  dimension: string;
+  value: string;
+  count: number;
+}
+
+export interface MatrixGrid {
+  row: string;
+  column: string;
+  cells: Array<{ row: string; column: string; count: number }>;
+}
+
+export const matrix = {
+  stats: (signal?: AbortSignal) => get<MatrixStats>('/matrix/stats', signal),
+  facets: (dimension?: string, signal?: AbortSignal) =>
+    get<MatrixFacet[]>(`/matrix/facets${q({ dimension })}`, signal),
+  grid: (row = 'topic', column = 'stance', signal?: AbortSignal) =>
+    get<MatrixGrid>(`/matrix/grid${q({ row, column })}`, signal),
+  search: (
+    options: {
+      q?: string;
+      kind?: string;
+      category?: string;
+      topic?: string;
+      company?: string;
+      stance?: string;
+      limit?: number;
+      offset?: number;
+    } = {},
+    signal?: AbortSignal,
+  ) => get<{ items: MatrixDocument[]; total: number }>(`/matrix/search${q(options)}`, signal),
+  document: (docKey: string, signal?: AbortSignal) =>
+    get<MatrixDocument>(`/matrix/document/${encodeURIComponent(docKey)}`, signal),
+};
