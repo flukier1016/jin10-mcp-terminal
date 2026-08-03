@@ -25,7 +25,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function main(): Promise<void> {
   assertConfig();
-  const matrix = new ResearchMatrix(config.matrix.dbPath);
+  const matrix = new ResearchMatrix(config.matrix.dbPath, { readOnly: config.matrix.readOnly });
   let stopMatrixSync = false;
   let matrixSyncPromise: Promise<unknown> | null = null;
 
@@ -115,7 +115,13 @@ async function main(): Promise<void> {
       wisburgMcp = null;
     }
   } else {
-    log(config.demoMode ? '演示模式下智堡研究模块已停用' : '未配置 WISBURG_TOKEN，智堡研究模块已停用');
+    log(
+      config.demoMode
+        ? '演示模式下智堡实时研究模块已停用'
+        : config.wisburg.liveEnabled
+          ? '未配置 WISBURG_TOKEN，智堡实时研究模块已停用'
+          : '智堡实时连接已关闭；本地缓存 Matrix 只读 API 保持可用',
+    );
   }
 
   // ── HTTP ────────────────────────────────────────────────────────
@@ -191,7 +197,10 @@ async function main(): Promise<void> {
     app.use('/api/research', createResearchRouter(wisburg, wisburgLedger));
   } else {
     app.use('/api/research', (_req, res) =>
-      res.status(503).json({ ok: false, error: { kind: 'disabled', message: '智堡数据源未启用' } }),
+      res.status(410).json({
+        ok: false,
+        error: { kind: 'retired', message: '智堡实时连接已关闭；历史缓存请使用 /api/matrix' },
+      }),
     );
   }
   app.use('/api', createApiRouter(jin10, scheduler));

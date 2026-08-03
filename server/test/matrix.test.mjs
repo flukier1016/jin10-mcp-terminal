@@ -57,7 +57,35 @@ test('SQLite Matrix 持久化详情、标签、全文检索和二维聚合', () 
     const restored = new ResearchMatrix(file);
     assert.equal(restored.getDocument('report:company:97902', true)?.detailStatus, 'complete');
     restored.close();
+
+    // 模拟 Railway Volume：WAL 模式主库可读，但文件和挂载目录都不可写。
+    fs.chmodSync(file, 0o444);
+    fs.chmodSync(dir, 0o555);
+    const readOnly = new ResearchMatrix(file, { readOnly: true });
+    assert.equal(readOnly.stats().documents, 1);
+    assert.equal(readOnly.search({ query: '商业不良贷款' }).total, 1);
+    assert.throws(
+      () =>
+        readOnly.upsertMetadata({
+          docKey: 'report:company:readonly',
+          kind: 'report',
+          category: 'company',
+          externalId: 'readonly',
+          title: '只读模式不得写入',
+          publishedAt: '',
+        }),
+      /readonly/i,
+    );
+    readOnly.close();
+
+    fs.chmodSync(dir, 0o755);
+    fs.chmodSync(file, 0o644);
+    const unchanged = new ResearchMatrix(file);
+    assert.equal(unchanged.stats().documents, 1);
+    unchanged.close();
   } finally {
+    fs.chmodSync(dir, 0o755);
+    if (fs.existsSync(file)) fs.chmodSync(file, 0o644);
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

@@ -20,13 +20,13 @@ interface Props {
 /**
  * 主题工作台。
  *
- * 左侧按「品种 / 主题」和「公司」两个维度分面，右侧是**智堡研究 + 金十盘面**
- * 合并后的同一条时间线 —— 研究观点和实时消息并排看，主题若对应可交易品种，
- * 顶部直接给出实时报价。
+ * 左侧按「品种 / 主题」和「公司」两个维度分面。缓存模式只显示金十盘面；
+ * 智堡实时研究开启后才合并研究观点。主题若对应可交易品种，顶部直接给出实时报价。
  */
 export function Workbench({ now, onOpenWisburg, onOpenJin10News, onPickCode }: Props) {
   const [defs, setDefs] = useState<TopicDef[]>([]);
   const [groups, setGroups] = useState<Record<string, string>>({});
+  const [wisburgOn, setWisburgOn] = useState(false);
   const [dim, setDim] = useState<'topic' | 'company'>('topic');
   const [active, setActive] = useState<string>('gold');
   /** 公司维度用自由关键词走同一条接口 */
@@ -49,6 +49,7 @@ export function Workbench({ now, onOpenWisburg, onOpenJin10News, onPickCode }: P
       .then((d) => {
         setDefs(d.topics);
         setGroups(d.groups);
+        setWisburgOn(d.wisburg);
       })
       .catch(() => undefined);
     return () => ac.abort();
@@ -189,7 +190,13 @@ export function Workbench({ now, onOpenWisburg, onOpenJin10News, onPickCode }: P
               )}
 
               {!facetBusy && !filteredFacets.length && (
-                <div className="empty">{kw ? '无匹配公司，回车可直接搜索' : '暂无公司数据'}</div>
+                <div className="empty">
+                  {kw
+                    ? '无匹配公司，回车可直接搜索'
+                    : wisburgOn
+                      ? '暂无公司数据'
+                      : '实时公司分面已关闭；输入公司名并回车可搜索金十消息'}
+                </div>
               )}
 
               <div className="wb-group">
@@ -213,7 +220,13 @@ export function Workbench({ now, onOpenWisburg, onOpenJin10News, onPickCode }: P
         </div>
 
         <div className="wb-side-foot">
-          {dim === 'topic' ? '主题聚合：智堡研究 + 金十盘面' : `从最近 100 份企业研究 / 电话会中抽取`}
+          {dim === 'topic'
+            ? wisburgOn
+              ? '主题聚合：智堡研究 + 金十盘面'
+              : '缓存模式：仅显示金十盘面；历史研究请到矩阵'
+            : wisburgOn
+              ? '从最近 100 份企业研究 / 电话会中抽取'
+              : '实时公司分面已关闭'}
         </div>
       </aside>
 
@@ -225,7 +238,13 @@ export function Workbench({ now, onOpenWisburg, onOpenJin10News, onPickCode }: P
           <div className="spacer" />
           <div className="tabs">
             {LENS.map((l) => (
-              <button key={l.key} className={`tab${lens === l.key ? ' on' : ''}`} onClick={() => setLens(l.key)}>
+              <button
+                key={l.key}
+                className={`tab${lens === l.key ? ' on' : ''}`}
+                onClick={() => setLens(l.key)}
+                disabled={l.key === 'research' && !wisburgOn}
+                title={l.key === 'research' && !wisburgOn ? '智堡实时连接已关闭；历史内容请使用矩阵' : undefined}
+              >
                 {l.label}
                 {feed && l.kinds.length > 0 && (
                   <em className="tab-n">{feed.items.filter((i) => l.kinds.includes(i.kind)).length}</em>
@@ -268,7 +287,11 @@ export function Workbench({ now, onOpenWisburg, onOpenJin10News, onPickCode }: P
             </div>
           )}
 
-          {!busy && !shown.length && <div className="empty">该视角下暂无内容</div>}
+          {!busy && !shown.length && (
+            <div className="empty">
+              {lens === 'research' && !wisburgOn ? '实时研究连接已关闭；历史内容请到矩阵' : '该视角下暂无内容'}
+            </div>
+          )}
 
           {!busy &&
             shown.map((it) => (

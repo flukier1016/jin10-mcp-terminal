@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { config } from '../config.js';
+import { config, wisburgEnabled } from '../config.js';
 import { QuotaLedger } from '../core/quota.js';
 import { McpClient } from '../mcp/client.js';
 import { WisburgService } from '../mcp/wisburg.js';
@@ -16,9 +16,9 @@ if (args.stats) {
   process.exit(0);
 }
 
-if (!config.wisburg.token) {
+if (!wisburgEnabled()) {
   matrix.close();
-  throw new Error('WISBURG_TOKEN 未配置，无法同步研究矩阵');
+  throw new Error('智堡实时连接已关闭；只有 WISBURG_LIVE_ENABLED=true 且 token 有效时才能同步研究矩阵');
 }
 
 let stopping = false;

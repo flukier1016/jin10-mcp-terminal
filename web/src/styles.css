@@ -2360,6 +2360,8 @@ a {
 }
 
 .matrix-card {
+  display: flex;
+  flex-direction: column;
   min-height: 226px;
   padding: 15px 16px;
   overflow: visible;
@@ -2371,6 +2373,23 @@ a {
 .matrix-card:hover {
   border-color: color-mix(in srgb, var(--violet) 45%, transparent);
   transform: translateY(-1px);
+}
+
+.matrix-card-open {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.matrix-card-open:focus-visible {
+  border-radius: 8px;
+  outline: 2px solid var(--violet);
+  outline-offset: 5px;
 }
 
 .matrix-card-meta {
@@ -2393,13 +2412,13 @@ a {
   font-style: normal;
 }
 
-.matrix-card h2 {
+.matrix-card-open h2 {
   margin: 11px 0 8px;
   font-size: 15.5px;
   line-height: 1.42;
 }
 
-.matrix-card > p {
+.matrix-card-open > p {
   display: -webkit-box;
   min-height: 72px;
   margin: 0 0 12px;
@@ -2409,6 +2428,19 @@ a {
   line-height: 1.68;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
+}
+
+.matrix-card-action {
+  margin-top: auto;
+  padding-bottom: 10px;
+  color: var(--violet);
+  font-size: 10.5px;
+  font-weight: 650;
+}
+
+.matrix-card-open:hover .matrix-card-action {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .matrix-tags {
@@ -2426,6 +2458,89 @@ a {
 .matrix-skeleton {
   min-height: 226px;
   border-radius: var(--radius);
+}
+
+.matrix-detail-modal {
+  width: min(720px, 100%);
+}
+
+.matrix-detail-state {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--fg-mute);
+  font-size: 9.5px;
+}
+
+.matrix-detail-state.complete {
+  border-color: color-mix(in srgb, var(--violet) 40%, var(--line));
+  background: var(--violet-dim);
+  color: var(--violet);
+}
+
+.matrix-detail-body h2 {
+  margin: 0 0 8px;
+  font-size: clamp(19px, 3vw, 26px);
+  line-height: 1.35;
+}
+
+.matrix-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 18px;
+}
+
+.matrix-detail-section {
+  margin-top: 14px;
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--inset);
+}
+
+.matrix-detail-section h3 {
+  margin: 0 0 7px;
+  color: var(--fg-dim);
+  font-size: 11px;
+}
+
+.matrix-detail-section p {
+  margin: 0;
+  color: var(--body-fg);
+  font-size: 13px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.matrix-detail-note {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--violet);
+  background: var(--violet-dim);
+  color: var(--fg-dim);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.matrix-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 14px;
+}
+
+.matrix-detail-tags span {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--fg-dim);
+  font-size: 10px;
+}
+
+.matrix-detail-loading {
+  display: grid;
+  gap: 11px;
 }
 
 /* ── 响应式 ─────────────────────────────────────────────────── */

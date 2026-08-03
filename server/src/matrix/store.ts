@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import Database from 'better-sqlite3';
 import type { WisburgDetail, WisburgItem } from '../mcp/wisburg.js';
@@ -67,20 +68,64 @@ interface DocumentRow {
   error: string;
 }
 
+export interface ResearchMatrixOptions {
+  /** 缓存专用部署：数据库必须已存在，源文件只读且禁止迁移和业务写入。 */
+  readOnly?: boolean;
+}
+
 /** 可迁移的智堡研究 SQLite 矩阵。数据库文件只落在 STATE_DIR，不进入 Git。 */
 export class ResearchMatrix {
   private readonly db: Database.Database;
+  private readonly runtimeDir: string | null;
   private readonly upsertMetadataTx: (input: MatrixDocumentInput) => void;
   private readonly upsertDetailTx: (docKey: string, detail: WisburgDetail) => void;
 
-  constructor(readonly file: string) {
-    if (file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
-    this.db = new Database(file);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
+  constructor(readonly file: string, options: ResearchMatrixOptions = {}) {
+    const readOnly = options.readOnly ?? false;
+    if (readOnly && file === ':memory:') throw new Error('只读 Matrix 必须使用已存在的数据库文件');
+    if (!readOnly && file !== ':memory:') fs.mkdirSync(path.dirname(file), { recursive: true });
+
+    let runtimeDir: string | null = null;
+    let databaseFile = file;
+    if (readOnly) {
+      if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+        throw new Error(`只读 Matrix 数据库不存在: ${file}`);
+      }
+      runtimeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jin10-matrix-'));
+      databaseFile = path.join(runtimeDir, 'matrix.sqlite');
+      try {
+        fs.copyFileSync(file, databaseFile);
+        fs.chmodSync(databaseFile, 0o600);
+        // 静态快照通常不含 WAL；若运维侧一并提供，则复制后在临时目录完成恢复。
+        if (fs.existsSync(`${file}-wal`)) {
+          fs.copyFileSync(`${file}-wal`, `${databaseFile}-wal`);
+          fs.chmodSync(`${databaseFile}-wal`, 0o600);
+        }
+      } catch (error) {
+        fs.rmSync(runtimeDir, { recursive: true, force: true });
+        throw error;
+      }
+    }
+    this.runtimeDir = runtimeDir;
+
+    try {
+      this.db = new Database(databaseFile);
+    } catch (error) {
+      if (runtimeDir) fs.rmSync(runtimeDir, { recursive: true, force: true });
+      throw error;
+    }
+    if (readOnly) {
+      // Railway Volume 上传的文件归 root 所有；WAL 数据库即使只查询也要创建 -shm。
+      // 仅在可写的临时副本上归并日志，再锁死连接，持久卷上的源文件全程不变。
+      this.db.pragma('journal_mode = DELETE');
+      this.db.pragma('query_only = ON');
+    } else {
+      this.db.pragma('journal_mode = WAL');
+      this.db.pragma('synchronous = NORMAL');
+    }
     this.db.pragma('foreign_keys = ON');
     this.db.pragma('busy_timeout = 5000');
-    this.migrate();
+    if (!readOnly) this.migrate();
 
     this.upsertMetadataTx = this.db.transaction((input: MatrixDocumentInput) => this.upsertMetadataInner(input));
     this.upsertDetailTx = this.db.transaction((docKey: string, detail: WisburgDetail) =>
@@ -90,6 +135,7 @@ export class ResearchMatrix {
 
   close(): void {
     this.db.close();
+    if (this.runtimeDir) fs.rmSync(this.runtimeDir, { recursive: true, force: true });
   }
 
   reindex(): number {

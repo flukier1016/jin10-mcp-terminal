@@ -46,8 +46,7 @@ const TTL = { topic: 5 * 60_000, companies: 10 * 60_000 } as const;
  * 并发搜索，合并成一条按时间倒序的时间线 —— 研究观点和盘面消息放在一起看，
  * 而不是在两个页面之间来回切。
  *
- * 单次成本：智堡 3 次 + 金十 2 次，5 分钟缓存。各自额度都是每工具 1500/天，
- * 即便一直翻主题也用不完。
+ * 缓存模式只调用金十；实时研究开启时才追加智堡 3 路搜索。结果缓存 5 分钟。
  */
 export function createTopicRouter(
   jin10: Jin10Service,
@@ -109,7 +108,7 @@ export function createTopicRouter(
 
   /** 公司分面：从最近的企业研究 + 电话会纪要标题里抽取并按频次排序。 */
   router.get('/companies', async (_req, res, next) => {
-    if (!wisburg) return res.status(503).json({ ok: false, error: { message: '智堡数据源未启用' } });
+    if (!wisburg) return res.json(ok({ scanned: 0, facets: [] }));
     try {
       const data = await cache.wrap('companies', TTL.companies, async () => {
         const [company, calls] = await Promise.all([

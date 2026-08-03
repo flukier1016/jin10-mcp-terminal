@@ -68,6 +68,11 @@ export const config = {
 
   /** 智堡 Wisburg MCP（官方也支持 ?api_key= 查询参数，这里用 Bearer 头，不会泄漏到日志）。 */
   wisburg: {
+    /**
+     * 实时连接必须显式开启。默认关闭，避免权限到期后因环境里残留旧 token 而继续发起请求。
+     * 本地 Matrix 查询不依赖这个开关。
+     */
+    liveEnabled: parseBoolean(process.env.WISBURG_LIVE_ENABLED, false),
     url: process.env.WISBURG_MCP_URL ?? 'https://mcp.wisburg.com/mcp',
     token: process.env.WISBURG_TOKEN ?? '',
     protocolVersion: process.env.MCP_PROTOCOL_VERSION ?? '2025-11-25',
@@ -78,6 +83,7 @@ export const config = {
   /** 智堡研报 Matrix：SQLite 本地库 + 可恢复批量同步。 */
   matrix: {
     dbPath: resolveMatrixPath(process.env.MATRIX_DB_PATH, stateDir),
+    readOnly: parseBoolean(process.env.MATRIX_READ_ONLY, false),
     publicContent: parseBoolean(process.env.MATRIX_PUBLIC_CONTENT, false),
     autoSync: parseBoolean(process.env.WISBURG_MATRIX_AUTO_SYNC, false),
     pageSize: parseNumber(process.env.WISBURG_SYNC_PAGE_SIZE, 100, { min: 1, max: 100, integer: true }),
@@ -146,14 +152,29 @@ export function assertConfig(): void {
     throw new Error('缺少 JIN10_TOKEN 环境变量 —— 请复制 .env.example 为 .env 并填入 Bearer Token');
   }
   if (!config.demoMode) assertHttpUrl('JIN10_MCP_URL', config.jin10.url);
-  if (config.wisburg.token) assertHttpUrl('WISBURG_MCP_URL', config.wisburg.url);
+  if (!config.demoMode && config.wisburg.liveEnabled && !config.wisburg.token) {
+    throw new Error('WISBURG_LIVE_ENABLED=true 时必须配置有效的 WISBURG_TOKEN');
+  }
+  if (wisburgEnabled()) assertHttpUrl('WISBURG_MCP_URL', config.wisburg.url);
   for (const origin of config.corsOrigins) {
     if (origin !== '*') assertHttpUrl('CORS_ORIGIN', origin);
   }
 }
 
-/** 智堡是可选数据源，没配 token 就整块功能关掉，不影响金十终端。 */
-export const wisburgEnabled = (): boolean => !config.demoMode && Boolean(config.wisburg.token);
+/**
+ * 智堡实时连接采用 fail-closed：旧 token 单独存在也不会连接，必须同时显式开启。
+ * 缓存 Matrix 始终独立可读，不受此判断影响。
+ */
+export function shouldConnectWisburg(input: { demoMode: boolean; liveEnabled: boolean; token: string }): boolean {
+  return !input.demoMode && input.liveEnabled && Boolean(input.token.trim());
+}
+
+export const wisburgEnabled = (): boolean =>
+  shouldConnectWisburg({
+    demoMode: config.demoMode,
+    liveEnabled: config.wisburg.liveEnabled,
+    token: config.wisburg.token,
+  });
 
 function assertHttpUrl(name: string, raw: string): void {
   try {

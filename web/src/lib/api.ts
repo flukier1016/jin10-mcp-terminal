@@ -213,6 +213,7 @@ export interface MatrixDocument {
   charCount: number;
   fetchedAt: number;
   updatedAt: number;
+  fields?: Record<string, string>;
   tags: MatrixTag[];
 }
 

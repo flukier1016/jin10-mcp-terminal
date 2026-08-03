@@ -34,6 +34,7 @@ export function ResearchMatrix() {
   const [topic, setTopic] = useState('');
   const [stance, setStance] = useState('');
   const [category, setCategory] = useState('');
+  const [detailKey, setDetailKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -113,9 +114,9 @@ export function ResearchMatrix() {
     <div className="matrix-page">
       <section className="panel matrix-hero">
         <div>
-          <span className="matrix-kicker">WISBURG · LOCAL SQLITE MATRIX</span>
-          <h1>研究结论矩阵</h1>
-          <p>智堡内容已按报告、主题、公司、观点方向和期限结构化；结论来自原文段落抽取，可回溯、不编造。</p>
+          <span className="matrix-kicker">ARCHIVED RESEARCH · LOCAL SQLITE</span>
+          <h1>历史研究结论矩阵</h1>
+          <p>实时连接已关闭；这里仅查询既有缓存快照。内容按报告、主题、公司、观点方向和期限结构化，结论来自原文段落抽取。</p>
         </div>
         <div className="matrix-metrics">
           <Metric label="文档" value={number(stats?.documents)} />
@@ -276,18 +277,29 @@ export function ResearchMatrix() {
         {busy && !items.length && [...Array(6)].map((_, index) => <div key={index} className="skel matrix-skeleton" />)}
         {!busy && !items.length && (
           <div className="empty">
-            {stats?.documents ? '没有符合当前条件的研究' : '数据库还没有内容，请先运行 npm run matrix:sync'}
+            {stats?.documents ? '没有符合当前条件的研究' : '缓存数据库尚未挂载，请检查 MATRIX_DB_PATH / STATE_DIR'}
           </div>
         )}
         {items.map((item) => (
           <article className="matrix-card panel" key={item.docKey}>
-            <div className="matrix-card-meta">
-              <span>{CATEGORY_LABEL[item.category] ?? item.category}</span>
-              <time>{item.publishedAt ? bjFull(item.publishedAt) : '时间未知'}</time>
-              <em>{item.detailStatus === 'complete' ? `${compact(item.charCount)} 字` : '元数据'}</em>
-            </div>
-            <h2>{item.title}</h2>
-            <p>{item.conclusion || item.summary || '等待详情同步与结论抽取。'}</p>
+            <button
+              type="button"
+              className="matrix-card-open"
+              aria-haspopup="dialog"
+              aria-label={`查看缓存详情：${item.title}`}
+              onClick={() => setDetailKey(item.docKey)}
+            >
+              <div className="matrix-card-meta">
+                <span>{CATEGORY_LABEL[item.category] ?? item.category}</span>
+                <time>{item.publishedAt ? bjFull(item.publishedAt) : '时间未知'}</time>
+                <em>{item.detailStatus === 'complete' ? `${compact(item.charCount)} 字` : '元数据'}</em>
+              </div>
+              <h2>{item.title}</h2>
+              <p>{item.conclusion || item.summary || '等待详情同步与结论抽取。'}</p>
+              <span className="matrix-card-action">
+                {item.detailStatus === 'complete' ? '查看缓存详情' : '查看元数据'} <span aria-hidden="true">→</span>
+              </span>
+            </button>
             <div className="matrix-tags">
               {item.tags
                 .filter((tag) => ['topic', 'company', 'stance', 'horizon', 'region'].includes(tag.dimension))
@@ -315,6 +327,106 @@ export function ResearchMatrix() {
           {busy ? '加载中…' : `加载更多（${number(items.length)}/${number(total)}）`}
         </button>
       )}
+
+      {detailKey && <MatrixDetailModal docKey={detailKey} onClose={() => setDetailKey(null)} />}
+    </div>
+  );
+}
+
+function MatrixDetailModal({ docKey, onClose }: { docKey: string; onClose: () => void }) {
+  const [data, setData] = useState<MatrixDocument | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    matrix
+      .document(docKey, ac.signal)
+      .then(setData)
+      .catch((nextError) => {
+        if (!ac.signal.aborted) setError(nextError instanceof ApiError ? nextError.message : '缓存详情加载失败');
+      });
+    return () => ac.abort();
+  }, [docKey]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div
+        className="modal matrix-detail-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="matrix-detail-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-head">
+          <span className="panel-title" id="matrix-detail-title">
+            缓存研究详情
+          </span>
+          <div className="spacer" />
+          {data && (
+            <span className={`matrix-detail-state${data.detailStatus === 'complete' ? ' complete' : ''}`}>
+              {data.detailStatus === 'complete' ? '详情已缓存' : '仅有元数据'}
+            </span>
+          )}
+          <button type="button" className="close" onClick={onClose} aria-label="关闭缓存研究详情">
+            ×
+          </button>
+        </div>
+
+        <div className="modal-body matrix-detail-body">
+          {error && <div className="err">{error}</div>}
+          {!data && !error && (
+            <div className="matrix-detail-loading">
+              <div className="skel" style={{ width: '76%', height: 22 }} />
+              <div className="skel" style={{ width: '42%' }} />
+              {[...Array(5)].map((_, index) => (
+                <div key={index} className="skel" style={{ width: `${98 - (index % 3) * 9}%` }} />
+              ))}
+            </div>
+          )}
+
+          {data && (
+            <>
+              <h2>{data.title}</h2>
+              <div className="meta matrix-detail-meta">
+                <span>{CATEGORY_LABEL[data.category] ?? data.category}</span>
+                <span>{data.publishedAt ? bjFull(data.publishedAt) : '时间未知'}</span>
+                <span>ID {data.externalId}</span>
+              </div>
+
+              {data.conclusion && (
+                <section className="matrix-detail-section">
+                  <h3>原文结论抽取</h3>
+                  <p>{data.conclusion}</p>
+                </section>
+              )}
+              {data.summary && data.summary !== data.conclusion && (
+                <section className="matrix-detail-section">
+                  <h3>缓存摘要</h3>
+                  <p>{data.summary}</p>
+                </section>
+              )}
+
+              <div className="matrix-detail-note">
+                {data.detailStatus === 'complete'
+                  ? `已缓存 ${number(data.charCount)} 个正文字符；公网部署只展示结构化结论和摘要，完整正文仍受访问保护。`
+                  : '当前快照只有元数据，智堡实时权限已关闭，因此无法继续回源补齐正文。'}
+              </div>
+
+              <div className="matrix-detail-tags" aria-label="研究标签">
+                {data.tags.map((tag) => (
+                  <span key={`${tag.dimension}:${tag.value}`}>{tag.value}</span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
