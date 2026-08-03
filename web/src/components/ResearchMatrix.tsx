@@ -295,7 +295,7 @@ export function ResearchMatrix() {
                 <em>{item.detailStatus === 'complete' ? `${compact(item.charCount)} 字` : '元数据'}</em>
               </div>
               <h2>{item.title}</h2>
-              <p>{item.conclusion || item.summary || '等待详情同步与结论抽取。'}</p>
+              <p>{plainMatrixText(item.conclusion || item.summary) || '等待详情同步与结论抽取。'}</p>
               <span className="matrix-card-action">
                 {item.detailStatus === 'complete' ? '查看缓存详情' : '查看元数据'} <span aria-hidden="true">→</span>
               </span>
@@ -336,6 +336,8 @@ export function ResearchMatrix() {
 function MatrixDetailModal({ docKey, onClose }: { docKey: string; onClose: () => void }) {
   const [data, setData] = useState<MatrixDocument | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const conclusion = plainMatrixText(data?.conclusion ?? '');
+  const summary = plainMatrixText(data?.summary ?? '');
 
   useEffect(() => {
     const ac = new AbortController();
@@ -399,16 +401,16 @@ function MatrixDetailModal({ docKey, onClose }: { docKey: string; onClose: () =>
                 <span>ID {data.externalId}</span>
               </div>
 
-              {data.conclusion && (
+              {conclusion && (
                 <section className="matrix-detail-section">
                   <h3>原文结论抽取</h3>
-                  <p>{data.conclusion}</p>
+                  <p>{conclusion}</p>
                 </section>
               )}
-              {data.summary && data.summary !== data.conclusion && (
+              {summary && summary !== conclusion && (
                 <section className="matrix-detail-section">
                   <h3>缓存摘要</h3>
-                  <p>{data.summary}</p>
+                  <p>{summary}</p>
                 </section>
               )}
 
@@ -429,6 +431,17 @@ function MatrixDetailModal({ docKey, onClose }: { docKey: string; onClose: () =>
       </div>
     </div>
   );
+}
+
+/** 缓存摘要偶尔含少量 Markdown 标记；卡片与只读弹层仅需呈现干净文本。 */
+function plainMatrixText(text: string): string {
+  return text
+    .replace(/\[([^\]]+)]\([^)]+\)/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .trim();
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
