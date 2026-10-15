@@ -2,6 +2,7 @@
   "name": "jin10-mcp-terminal",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "description": "实时财经终端 — 通过标准 MCP 协议接入金十数据",
   "workspaces": [
     "server",

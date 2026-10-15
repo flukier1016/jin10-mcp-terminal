@@ -1,63 +1,80 @@
+<div align="center">
+
 # 金十实时终端 · JIN10 MCP TERMINAL
 
-通过**标准 MCP 协议**接入 [金十数据](https://mcp.jin10.com) 的实时财经终端，并可挂载历史智堡研究 SQLite Matrix。智堡实时连接现在采用 fail-closed：默认硬关闭，即使环境里残留旧 token 也不会发起请求。
+**每个工具每天只有 1500 次调用，也能 24 小时不断档的实时财经终端。**
 
-一个 Node 进程同时承担 MCP 客户端、额度调度器、SSE 广播器与前端静态托管，可直接运行在 macOS、Linux、Windows、Docker 或 Railway；也支持前后端分离部署。
+通过标准 MCP 协议接入[金十数据](https://mcp.jin10.com)：行情、分钟 K 线、7×24 快讯、深度资讯、财经日历，<br>
+一个 Node 进程同时做 MCP 客户端、额度调度器、SSE 广播器和前端托管，本机、Docker、Railway 都能跑。
 
----
+[**60 秒无密钥体验**](#60-秒无密钥体验) &nbsp;·&nbsp; [它怎么工作](#它怎么工作) &nbsp;·&nbsp; [部署](#部署) &nbsp;·&nbsp; [安全与数据合规](#安全与数据合规)
 
-## 60 秒无密钥体验
+![Node 20+](https://img.shields.io/badge/Node-20%2B-1E2761?style=flat-square)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-1E2761?style=flat-square)
+![React 19](https://img.shields.io/badge/React-19-1E2761?style=flat-square)
+![MCP](https://img.shields.io/badge/MCP-Streamable%20HTTP-B7791F?style=flat-square)
+![tests](https://img.shields.io/badge/tests-13%20passed-0F766E?style=flat-square)
+![license](https://img.shields.io/badge/license-MIT-0F766E?style=flat-square)
 
-Node 22 是推荐版本（仓库含 `.nvmrc`），最低支持 Node 20。
+</div>
 
-```bash
-npm ci
-npm run demo
-```
+<p align="center"><img src="docs/images/terminal.jpg" alt="终端页：自选行情、分钟 K 线、财经日历、7×24 快讯" width="100%"></p>
 
-打开 `http://localhost:8080`。页面会明确显示 `DEMO`，使用本地确定性演示数据，不访问金十或智堡，也不消耗真实额度。另开一个终端可做端到端探测：
+## 为什么做
 
-```bash
-npm run probe
-```
-
-## 智堡缓存专用模式
-
-权限暂停或到期时保持下面四项即可：
-
-```bash
-WISBURG_LIVE_ENABLED=false
-WISBURG_MATRIX_AUTO_SYNC=false
-MATRIX_READ_ONLY=true
-MATRIX_PUBLIC_CONTENT=false
-STATE_DIR=/tmp/jin10-state
-MATRIX_DB_PATH=/app/data/wisburg-matrix.sqlite
-```
-
-- `/api/research/*` 返回 `410 Gone`，主题页与报告导出不会再调用智堡。
-- `/api/matrix/*` 继续只读查询现有 SQLite，不产生任何智堡请求。
-- `npm run matrix:sync` 同样受实时连接开关保护；`matrix:stats` 与 `matrix:reindex` 仍是纯本地操作。
-- 缓存库不进入 Git 或镜像。Railway 必须先挂载持久卷，再单独上传数据库文件。
-- 对外提供缓存前，应重新确认原账户条款是否允许在权限结束后继续保存、加工或展示；默认不要公开原始全文。
-
----
-
-## 它解决的核心问题
-
-金十的限制是**每个工具每天 1500 次调用**。这跟"实时"是直接冲突的：1 秒轮询一次，25 分钟就把当天额度烧光。
-
-这个项目的整套架构都是围绕这个约束设计的：
+金十 MCP 的限制是**每个工具每天 1500 次调用**，这和“实时”直接冲突：1 秒轮询一次，25 分钟就把当天额度烧光。
+整套架构都围绕这个约束设计，目标是**额度永不提前断供，界面如实显示刷新代价**。
 
 | 手段 | 效果 |
 |---|---|
 | **服务端单例轮询 + SSE 扇出** | 100 个浏览器和 1 个浏览器消耗完全相同的额度 |
-| **额度铺满调度** | `86400s ÷ (1500 × 0.9) = 64 秒/次`，正好把日额度摊平到 24 小时，永不提前断供 |
-| **双通道并行** | `get_quote` 与 `get_kline` 是两套独立的 1500/天，合计 **2700 次/天 ≈ 32 秒一次调用** |
-| **加权最陈旧优先** | 宏观锚（黄金/原油/美元/美股/中国）刷得快，长尾慢慢补，冷启动一次性冲满 |
-| **在途请求合并** | 同一秒 10 个页面点开同一根 K 线 = 1 次真实调用 |
-| **持久化额度账本** | 按北京时间自然日计数并写入 `STATE_DIR`，重启/重部署后继续当天计数 |
+| **额度铺满调度** | `86400s ÷ (1500 × 0.9) = 64 秒/次`，把日额度摊平到 24 小时 |
+| **双通道并行** | `get_quote` 与 `get_kline` 各有 1500 次，合计约 32 秒一次调用 |
+| **加权最陈旧优先** | 宏观锚（黄金、原油、美元、美股、中国）刷得快，长尾慢慢补 |
+| **在途请求合并** | 同一秒 10 个页面点开同一根 K 线，只算 1 次真实调用 |
+| **持久化额度账本** | 按北京时间自然日计数，重启、重新部署后接着当天的计数 |
 
-### 覆盖范围与刷新率的取舍
+## 看一眼
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/overview.jpg" alt="总览"><br><sub><b>总览</b>：市场宽度、领涨领跌、按地区或品种汇总、分组热力矩阵（超时数据打斜纹）</sub></td>
+<td width="50%"><img src="docs/images/topics.jpg" alt="主题工作台"><br><sub><b>主题工作台</b>：24 个宏观交易主题，顶部直接给出对应品种的实时报价</sub></td>
+</tr>
+</table>
+
+<p align="center">
+<img src="docs/images/terminal-dark.jpg" alt="夜间模式" width="70%">&nbsp;
+<img src="docs/images/mobile-dark.jpg" alt="手机" width="20%"><br>
+<sub>日间 / 夜间、红涨绿跌 / 绿涨红跌随时切换；手机端横向自选、宽屏三栏并行</sub>
+</p>
+
+## 能做什么
+
+| 模块 | 说明 |
+|---|---|
+| **终端** | 自选行情（报价跳动闪烁）、分钟级 K 线（北京时间轴，实时价推动最后一根蜡烛）、7×24 快讯流（关键词搜索与热词）、财经日历（星级重要性、利多利空，自动定位下一个待公布）、深度资讯全文 |
+| **总览** | 市场宽度条、领涨领跌榜、按地区或品种汇总的发散条形图、分组热力矩阵、覆盖度面板（当前刷新间隔、整轮周期、日调用预算） |
+| **主题工作台** | 品种 / 主题与公司两种分面；主题对应可交易品种时给出实时报价，一点跳到终端看 K 线 |
+| **研究矩阵** | 把智堡研究沉淀成本地 SQLite 库：断点续传同步、从原文抽取可追溯结论、主题 × 观点二维矩阵、中文全文检索 |
+| **一键导出报告** | HTML（可打印成 PDF）、Markdown、JSON 三种格式；用内存快照生成，**不消耗任何金十额度** |
+| **额度水位** | 顶栏常驻每个工具的已用 / 上限和重置倒计时 |
+
+## 它怎么工作
+
+```mermaid
+flowchart LR
+    J["金十 MCP<br/>8 个工具 + 1 个资源"] <--> C["Streamable HTTP<br/>MCP 客户端"]
+    W["智堡 MCP<br/>默认硬关闭"] -.-> C
+    C --> Q["额度调度器<br/>铺满 24 小时 · 最陈旧优先"]
+    Q --> B["SSE 广播"]
+    B --> U1["浏览器"]
+    B --> U2["浏览器"]
+    B --> U3["……"]
+    Q --> L[("额度账本<br/>北京时间按天")]
+```
+
+**覆盖范围与刷新率的取舍**（硬算术，界面上如实显示）：
 
 这是硬算术，界面上如实显示，不做粉饰：
 
@@ -69,94 +86,13 @@ MATRIX_DB_PATH=/app/data/wisburg-matrix.sqlite
 
 | 档位 | 覆盖 | 核心品种刷新 | 长尾刷新 |
 |---|---|---|---|
-| **核心** | 9 个宏观锚 | **约 4.6 分钟** | — |
+| **核心** | 9 个宏观锚 | **约 4.6 分钟** |：|
 | **全部**（默认） | 33 个品种 | 约 10 分钟 | 约 31 分钟 |
 
 快讯 / 资讯 / 日历各有独立的 1500/天，按 64 秒轮询只用掉 90%，全天候无压力。
 
----
-
-## 功能
-
-### 终端页
-- 自选行情，报价跳动时闪烁提示，红涨绿跌 / 绿涨红跌可切换
-- 分钟级 K 线（TradingView lightweight-charts），北京时间轴，实时价推动最后一根蜡烛
-- 7×24 快讯流，新条目高亮滑入，关键词搜索 + 热词
-- 财经日历，星级重要性、利多/利空标注，自动定位到"下一个待公布"
-- 深度资讯列表 + 全文阅读
-
-### 总览页
-- 市场宽度条（涨/平/跌分布 + 多头占比）
-- 领涨/领跌榜
-- 按**地区**或**品种**汇总的中心发散条形图
-- 分组热力矩阵，色阶按涨跌幅分五档，超时数据打斜纹标记
-- 覆盖度面板：实时显示当前刷新间隔、整轮周期、日调用预算
-
-### 主题工作台
-左侧按**品种/主题**或**公司**分面，右侧展示金十盘面；仅当账户权限恢复并显式开启智堡实时连接时，才合并智堡研究时间线。
-
-- **品种 / 主题**：24 个宏观交易主题，分五组（大宗商品 / 外汇 / 利率与央行 / 股票市场 / 宏观主题）。主题若对应可交易品种（黄金→XAUUSD、日元→USDJPY、A股→000001…），顶部直接给出实时报价，点一下跳到终端页看 K 线。
-- **公司**：实时连接开启时，从最近 100 份企业研究与电话会纪要的标题里动态抽取公司名并按频次排序；缓存模式下仍可手动输入公司名搜索金十消息。
-- **视角切换**：缓存模式提供全部 / 盘面消息；实时连接恢复后才启用研究观点，并按来源区分智堡紫、金十金。
-
-缓存专用模式下单个主题只请求金十；智堡实时连接开启时才额外并发 3 路智堡搜索，并使用 5 分钟缓存。
-
-### 研究页（智堡实时连接恢复后可用）
-- 资讯流 / 市场日报 / 投行研报 / 企业研究 / 资管报告 / 公开文献 / 电话会纪要 / 深度文章 / 数据图表
-- 全文搜索 + 游标翻页
-- Markdown 正文渲染
-
-### 研究结论 Matrix（本地长期库）
-
-Matrix 把智堡的易失在线内容沉淀为可迁移的 SQLite 研究库，不再依赖每次打开页面都实时请求：
-
-- 9 路列表并发扫库，单页 100 条；按 `source + id` 去重，逐页写入游标检查点
-- 报告与文章正文分批补齐；进程中断、机器重启或重新部署后可继续，不重复拉已完成详情
-- 从原文的「结论 / 核心观点 / 投资要点 / Summary」等段落抽取可追溯结论，不调用模型补写事实
-- 自动生成主题、公司、观点、期限、地区、来源分组标签，并提供「主题 × 观点」二维矩阵
-- FTS5 trigram 全文索引可直接检索中文；网页端支持搜索、分面筛选和结论卡片
-- 实测智堡列表游标最多返回 10,000 条；触达分页上限会落盘标记。任一入口返回 429 后，账户级熔断状态会持久化到北京时间次日，避免重启后继续空打
-
-```bash
-# 查看库规模与各来源检查点；重跑本地结论和标签抽取，不访问智堡
-npm run matrix:stats
-npm run matrix:reindex
-
-# 仅在权限恢复后：同时设置 WISBURG_LIVE_ENABLED=true 和有效 token，才允许同步
-WISBURG_LIVE_ENABLED=true npm run matrix:sync
-
-# 权限恢复后精确控制本轮来源与预算
-WISBURG_LIVE_ENABLED=true npm run matrix:sync -- \
-  --sources=report:company,report:ib,article,report-detail,article-detail \
-  --detail-calls=480 --report-details=240 --article-details=240 --concurrency=4
-```
-
-数据库默认位于 `STATE_DIR/wisburg-matrix.sqlite`，`.data/` 已排除出 Git。迁移时复制 SQLite 文件即可；额度账本只有恢复在线同步时才需要。公网 API 默认只返回元数据、标签和结论；原始全文保持 `MATRIX_PUBLIC_CONTENT=false`，仅在账户条款明确允许时再考虑受控读取。不要把数据库提交到公开仓库。
-
-### 一键导出报告
-顶栏「⤓ 导出报告」，服务端用内存快照生成完整市场日报 —— **导出本身不消耗任何金十额度**，可以随便点。
-
-| 格式 | 用途 |
-|---|---|
-| **HTML** | 新标签打开，自带打印按钮，A4 排版可直接存为 PDF |
-| **Markdown** | 下载 `.md`，可粘进微信 / 邮件 / 笔记 |
-| **JSON** | 下载结构化数据，便于二次处理 |
-
-报告内容：市场概况（涨跌分布 + 按地区/按品种汇总 + 领涨领跌）、全品种行情明细（按地区分组，含今开/最高/最低/更新时延）、今日财经日历（已公布带前值预期实际与利多利空 / 待公布）、重要快讯、深度资讯。只有智堡实时连接显式开启时，「含智堡研究」才会额外调用智堡；缓存专用模式下不会调用。
-
-```bash
-curl "http://localhost:8080/api/report?format=md&flash=40&news=10&star=3&research=1"
-```
-
-### 通用
-- 日间 / 夜间主题（跟随系统，可手动覆盖，按 WCAG AA 可读性设计）
-- 额度水位条常驻顶栏
-- 响应式交易工作区：手机端横向自选、紧凑头部与四列日历，宽屏端三栏并行
-- 键盘焦点、语义化弹层、连接恢复提示与减少动态效果支持
-
----
-
-## MCP 接入实现
+<details>
+<summary><b>MCP 接入实现细节</b></summary>
 
 `server/src/mcp/client.ts` 是一个从零实现的 **Streamable HTTP** MCP 客户端，不依赖 `mcp-remote` 之类的 stdio 桥接。
 
@@ -186,7 +122,7 @@ initialize → notifications/initialized → tools/list / resources/list → too
 
 > 金十官方文档的示例写的是 `next_offset`，且快讯 item 带 `id`/`title`。**线上实际返回是 `next_cursor`，快讯只有 `content`/`time`/`url`。**
 > 本项目按线上实测实现，并对文档里的可选字段做了容错。
-> 另外文档未提及 `list_calendar`，但线上 `tools/list` 确实存在且可用 —— 本项目实现的是文档的超集。
+> 另外文档未提及 `list_calendar`，但线上 `tools/list` 确实存在且可用，本项目实现的是文档的超集。
 
 **已接入的全部工具**
 
@@ -195,46 +131,40 @@ initialize → notifications/initialized → tools/list / resources/list → too
 
 智堡（11/11）：`list-feed` `list-market-daily` `list-articles` `get-article-detail` `list-images` `list-institutional-reports` `list-company-reports` `list-am-reports` `list-archive-reports` `list-earning-calls` `get-report-detail`
 
----
+</details>
 
-## 本地运行
+## 60 秒无密钥体验
 
-实盘模式先准备环境变量：
+推荐 Node 22（仓库含 `.nvmrc`），最低 Node 20。
 
 ```bash
 npm ci
-cp .env.example .env      # Windows PowerShell：Copy-Item .env.example .env
-# 编辑 .env：填写 JIN10_TOKEN；保持 WISBURG_LIVE_ENABLED=false
-npm run dev               # server :8080 + Vite :5173
+npm run demo        # 打开 http://localhost:8080
 ```
 
-生产模式（同一进程托管前端）：
+页面会明确显示 `DEMO`，使用本地确定性演示数据，不访问金十或智堡，也不消耗任何额度。另开一个终端可做端到端探测：`npm run probe`。
+
+**接真实数据**：复制 `.env.example` 为 `.env`，填写 `JIN10_TOKEN`（金十 MCP 的 Bearer Token），然后：
 
 ```bash
-npm run build && npm start   # → http://localhost:8080
+npm run dev                  # 开发：server :8080 + Vite :5173
+npm run build && npm start   # 生产：同一进程托管前端 → http://localhost:8080
+npm run verify               # 类型检查 + 生产构建 + 内置测试
 ```
 
-完整本地质量门：
-
-```bash
-npm run verify            # 类型检查 + 生产构建 + 内置测试
-npm run probe             # 对运行实例检查 Web / health / universe / config / Matrix
-```
-
-GitHub Actions 会在 Ubuntu（Node 20/22）与 Windows（Node 22）上重复执行 `npm run verify`，防止平台差异回归。
-
----
-
-## 可迁移部署
+## 部署
 
 | 方式 | 入口 | 适用场景 |
 |---|---|---|
-| 单进程 | `npm run build && npm start` | VPS、Windows 服务、macOS/Linux 本机 |
+| 单进程 | `npm run build && npm start` | VPS、Windows 服务、macOS / Linux 本机 |
 | Docker | `docker compose up --build` | 任意容器平台；默认持久化额度账本 |
 | Railway | `railway up` | 仓库内置 Nixpacks 与健康检查配置 |
 | 前后端分离 | `VITE_API_BASE_URL` + `CORS_ORIGIN` | 静态 CDN 前端 + 独立 API 服务 |
 
-### Docker
+健康检查：`GET /api/health`。GitHub Actions 在 Ubuntu（Node 20 / 22）和 Windows（Node 22）上跑 `npm run verify`。
+
+<details>
+<summary><b>Docker</b></summary>
 
 无密钥验收：
 
@@ -258,9 +188,10 @@ BASE_URL=http://localhost:8080 npm run probe
 
 Compose 会把 `terminal-data` 卷挂载到 `/app/data`。迁移机器时应同时迁移该卷，否则 Matrix 数据和当天额度计数都会丢失。
 
-### Railway
+</details>
 
-仓库已包含 `railway.json` 与 `nixpacks.toml`，单服务即可。
+<details>
+<summary><b>Railway 与环境变量</b></summary>
 
 ```bash
 railway link                                        # 关联项目
@@ -268,6 +199,8 @@ railway volume add --mount-path /app/data --json    # 首次部署缓存库时�
 railway volume files upload .data/wisburg-matrix.sqlite /wisburg-matrix.sqlite --json
 railway up                                          # 数据到位后再部署
 ```
+
+`volume files upload` 的远端路径以卷根目录 `/` 计算；应用通过挂载点 `/app/data/wisburg-matrix.sqlite` 读取。上传前先确认本地 SQLite `PRAGMA quick_check` 返回 `ok`。数据库已被 `.gitignore` 与 `.dockerignore` 排除，普通 `git push`、GitHub 构建或 `railway up` 都不会替你迁移它。
 
 `volume files upload` 的远端路径以卷根目录 `/` 计算；应用通过挂载点 `/app/data/wisburg-matrix.sqlite` 读取。上传前先确认本地 SQLite `PRAGMA quick_check` 返回 `ok`。数据库已被 `.gitignore` 与 `.dockerignore` 排除，普通 `git push`、GitHub 构建或 `railway up` 都不会替你迁移它。
 
@@ -292,11 +225,10 @@ railway up                                          # 数据到位后再部署
 | `QUOTA_RESERVE_RATIO` | | 默认 `0.1`（10% 安全垫） |
 | `PORT` | | Railway 自动注入 |
 
-健康检查：`GET /api/health`
+</details>
 
-> Railway 要真正 24/7 常驻，需要使用不会休眠的计划。Matrix 必须挂载 Volume、把 `MATRIX_DB_PATH` 指向 `/app/data/wisburg-matrix.sqlite`、开启 `MATRIX_READ_ONLY=true` 并保持单副本运行。服务启动时会把卷上源库复制到容器临时目录，解决只读 Volume 上 WAL/SHM 辅助文件的权限问题；所有 API 查询都锁定为只读，重启后重新从卷加载。未挂卷时启动会失败，避免把空库健康检查误判为数据已经上线。
-
-### 前后端分离
+<details>
+<summary><b>前后端分离</b></summary>
 
 构建前端时设置 API 的公开 Origin：
 
@@ -312,9 +244,58 @@ CORS_ORIGIN=https://terminal.example.com npm start
 
 多个前端 Origin 用逗号分隔。`VITE_*` 会进入浏览器构建产物，禁止在其中放任何 token。
 
----
+</details>
 
-## API
+## 安全与数据合规
+
+- **Token 只在服务端**：金十、智堡的 Token 只从环境变量读取，只放在发往数据源的 `Authorization` 请求头里；接口不返回任何密钥。
+  `VITE_*` 变量会进入浏览器构建产物，禁止放 Token。
+- **仓库里没有密钥和数据**：`.env` 与本地缓存库 `.data/` 都被排除在 Git 和镜像之外；测试会扫描仓库，出现真实密钥格式或本机绝对路径就失败。
+- **智堡默认硬关闭（fail-closed）**：即使环境里残留旧 Token，不显式开启 `WISBURG_LIVE_ENABLED=true` 也不会发起任何请求。
+- **研究全文默认不公开**：`MATRIX_PUBLIC_CONTENT=false` 时公网只返回元数据、标签和结论；受控读取用 `MATRIX_ADMIN_TOKEN`，按常量时间比对。
+  对外提供缓存前，请先确认原账户条款允许在权限结束后继续保存、加工或展示；不要把数据库提交到公开仓库。
+- **浏览器侧加固**：禁止被别的网页嵌入、不嗅探内容类型、HSTS；关闭 `X-Powered-By`。
+
+<details>
+<summary><b>智堡缓存专用模式</b></summary>
+
+权限暂停或到期时保持下面四项即可：
+
+```bash
+WISBURG_LIVE_ENABLED=false
+WISBURG_MATRIX_AUTO_SYNC=false
+MATRIX_READ_ONLY=true
+MATRIX_PUBLIC_CONTENT=false
+STATE_DIR=/tmp/jin10-state
+MATRIX_DB_PATH=/app/data/wisburg-matrix.sqlite
+```
+
+- `/api/research/*` 返回 `410 Gone`，主题页与报告导出不会再调用智堡。
+- `/api/matrix/*` 继续只读查询现有 SQLite，不产生任何智堡请求。
+- `npm run matrix:sync` 同样受实时连接开关保护；`matrix:stats` 与 `matrix:reindex` 仍是纯本地操作。
+- 缓存库不进入 Git 或镜像。Railway 必须先挂载持久卷，再单独上传数据库文件。
+- 对外提供缓存前，应重新确认原账户条款是否允许在权限结束后继续保存、加工或展示；默认不要公开原始全文。
+
+研究矩阵常用命令：
+
+```bash
+# 查看库规模与各来源检查点；重跑本地结论和标签抽取，不访问智堡
+npm run matrix:stats
+npm run matrix:reindex
+
+# 仅在权限恢复后：同时设置 WISBURG_LIVE_ENABLED=true 和有效 token，才允许同步
+WISBURG_LIVE_ENABLED=true npm run matrix:sync
+
+# 权限恢复后精确控制本轮来源与预算
+WISBURG_LIVE_ENABLED=true npm run matrix:sync -- \
+  --sources=report:company,report:ib,article,report-detail,article-detail \
+  --detail-calls=480 --report-details=240 --article-details=240 --concurrency=4
+```
+
+</details>
+
+<details>
+<summary><b>API 一览</b></summary>
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -340,9 +321,10 @@ CORS_ORIGIN=https://terminal.example.com npm start
 
 错误映射：工具业务错误 → `502`，触发限流 → `429`，协议错误 → `502`。
 
----
+</details>
 
-## 结构
+<details>
+<summary><b>目录结构</b></summary>
 
 ```
 server/src/
@@ -370,8 +352,13 @@ Dockerfile            Node 22 多阶段、非 root 运行镜像
 compose.yaml          单服务 + 持久化额度卷
 ```
 
----
+</details>
 
 ## 技术栈
 
-Node 20+ · TypeScript · Express 5 · React 19 · Vite 6 · better-sqlite3 / FTS5 · lightweight-charts 5 · 零 UI 框架（手写 CSS 设计系统）
+Node 20+ · TypeScript · Express 5 · React 19 · Vite 6 · better-sqlite3 / FTS5 · lightweight-charts 5 · 手写 CSS 设计系统（无 UI 框架）
+
+## 许可
+
+[MIT](LICENSE)。行情、快讯、资讯与研究内容的版权归金十数据、智堡 Wisburg 等原始提供方所有；使用前请遵守各自的服务条款。
+本项目只做数据展示与整理，不构成任何投资建议。

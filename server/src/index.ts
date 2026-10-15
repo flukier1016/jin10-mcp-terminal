@@ -9,6 +9,7 @@ import { Jin10Service, TOOLS, type Jin10Client } from './mcp/jin10.js';
 import { DemoJin10Client } from './mcp/demo.js';
 import { WisburgService, WISBURG_TOOLS } from './mcp/wisburg.js';
 import { QuotaLedger } from './core/quota.js';
+import { securityHeaders } from './core/security.js';
 import { StreamBus } from './core/bus.js';
 import { Scheduler } from './core/scheduler.js';
 import { UNIVERSE, REGION_LABEL, ASSET_LABEL, CORE_CODES, type Scope } from './core/universe.js';
@@ -128,6 +129,7 @@ async function main(): Promise<void> {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
+  app.use(securityHeaders);
 
   // SSE 必须绕过压缩，否则事件会被 gzip 缓冲住失去实时性
   app.use(
